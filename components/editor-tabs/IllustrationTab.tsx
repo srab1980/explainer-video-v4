@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import type { Scene, IllustrationStyle, VisualEffects } from '@/lib/types';
 import * as LucideIcons from 'lucide-react';
-import { Search, Plus, Trash2, Wand2, Layers, Sparkles, AlertCircle } from 'lucide-react';
+import { Search, Plus, Trash2, Wand2, Layers, Sparkles, AlertCircle, X, ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import Fuse from 'fuse.js';
 
 interface IllustrationTabProps {
@@ -44,6 +44,9 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
   const [customStyleDesc, setCustomStyleDesc] = useState('');
   const [showEffectsPanel, setShowEffectsPanel] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [fullscreenImage, setFullscreenImage] = useState<{ illustration: any; index: number } | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [rotation, setRotation] = useState(0);
 
   // Fuzzy search setup
   const fuse = useMemo(
@@ -96,11 +99,97 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
     }
   };
 
+  const handleOpenFullscreen = (illustration: any, index: number) => {
+    setFullscreenImage({ illustration, index });
+    setZoomLevel(100);
+    setRotation(0);
+  };
+
+  const handleCloseFullscreen = () => {
+    setFullscreenImage(null);
+    setZoomLevel(100);
+    setRotation(0);
+  };
+
+  const handlePrevious = () => {
+    if (fullscreenImage && scene.illustrations.length > 1) {
+      const newIndex = (fullscreenImage.index - 1 + scene.illustrations.length) % scene.illustrations.length;
+      setFullscreenImage({
+        illustration: scene.illustrations[newIndex],
+        index: newIndex
+      });
+      setZoomLevel(100);
+      setRotation(0);
+    }
+  };
+
+  const handleNext = () => {
+    if (fullscreenImage && scene.illustrations.length > 1) {
+      const newIndex = (fullscreenImage.index + 1) % scene.illustrations.length;
+      setFullscreenImage({
+        illustration: scene.illustrations[newIndex],
+        index: newIndex
+      });
+      setZoomLevel(100);
+      setRotation(0);
+    }
+  };
+
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 25, 400));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(prev - 25, 25));
+  };
+
+  const handleRotate = () => {
+    setRotation(prev => (prev + 90) % 360);
+  };
+
   const selectedIllustration = scene.illustrations.find(
     (ill) => ill.id === selectedIllustrationId
   );
 
   const usageInfo = currentProject?.usageTracking;
+
+  // Keyboard event handling for fullscreen modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!fullscreenImage) return;
+      
+      switch (e.key) {
+        case 'Escape':
+          handleCloseFullscreen();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          handlePrevious();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          handleNext();
+          break;
+        case '+':
+        case '=':
+          e.preventDefault();
+          handleZoomIn();
+          break;
+        case '-':
+          e.preventDefault();
+          handleZoomOut();
+          break;
+        case 'r':
+        case 'R':
+          e.preventDefault();
+          handleRotate();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [fullscreenImage, scene.illustrations.length]);
 
   return (
     <div className="space-y-6">
@@ -231,18 +320,22 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
           </p>
         ) : (
           <div className="grid grid-cols-3 gap-3">
-            {scene.illustrations.map((illustration) => {
+            {scene.illustrations.map((illustration, index) => {
               const isSelected = selectedIllustrationId === illustration.id;
               return (
                 <div
                   key={illustration.id}
-                  className={`relative p-4 border-2 rounded-lg flex flex-col items-center gap-2 cursor-pointer transition-all ${
+                  className={`relative p-4 border-2 rounded-lg flex flex-col items-center gap-2 transition-all ${
                     isSelected
                       ? 'border-purple-500 bg-purple-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
-                  onClick={() => setSelectedIllustrationId(illustration.id)}
                 >
+                  {/* Click to select illustration */}
+                  <div 
+                    className="cursor-pointer w-full"
+                    onClick={() => setSelectedIllustrationId(illustration.id)}
+                  >
                   {/* Type Badge */}
                   <div className="absolute top-2 left-2">
                     <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
@@ -255,25 +348,44 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
                   </div>
 
                   {/* Illustration Display */}
-                  <div className="w-full h-24 flex items-center justify-center">
-                    {illustration.type === 'ai-generated' && illustration.imageUrl ? (
-                      <img
-                        src={illustration.imageUrl}
-                        alt={illustration.imagePrompt || 'AI generated'}
-                        className="max-w-full max-h-full object-contain rounded"
-                      />
-                    ) : (
-                      (() => {
-                        const Icon = (LucideIcons as any)[illustration.iconName || 'Circle'] || LucideIcons.Circle;
-                        return (
-                          <Icon
-                            size={40}
-                            style={{ color: illustration.color }}
-                            strokeWidth={1.5}
-                          />
-                        );
-                      })()
-                    )}
+                  <div className="w-full h-24 flex items-center justify-center relative group">
+                    {/* Click to view fullscreen */}
+                    <div 
+                      className="w-full h-full flex items-center justify-center cursor-pointer"
+                      onClick={() => handleOpenFullscreen(illustration, index)}
+                    >
+                      {illustration.type === 'ai-generated' && illustration.imageUrl ? (
+                        <img
+                          src={illustration.imageUrl}
+                          alt={illustration.imagePrompt || 'AI generated'}
+                          className="max-w-full max-h-full object-contain rounded hover:scale-105 transition-transform"
+                        />
+                      ) : (
+                        (() => {
+                          const Icon = (LucideIcons as any)[illustration.iconName || 'Circle'] || LucideIcons.Circle;
+                          return (
+                            <Icon
+                              size={40}
+                              style={{ color: illustration.color }}
+                              strokeWidth={1.5}
+                              className="hover:scale-110 transition-transform"
+                            />
+                          );
+                        })()
+                      )}
+                    </div>
+                    
+                    {/* Fullscreen Button */}
+                    <button
+                      className="absolute top-1 right-1 p-1 bg-black bg-opacity-50 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-opacity-70"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenFullscreen(illustration, index);
+                      }}
+                      title="View fullscreen"
+                    >
+                      <ZoomIn className="w-3 h-3" />
+                    </button>
                   </div>
 
                   <span className="text-xs text-gray-600 truncate w-full text-center">
@@ -296,14 +408,15 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
                     <Trash2 className="w-3 h-3" />
                   </button>
 
-                  {/* Layer Controls */}
-                  {illustration.layer && !illustration.layer.visible && (
-                    <div className="absolute bottom-2 left-2">
-                      <span className="px-2 py-0.5 text-xs bg-gray-600 text-white rounded-full">
-                        Hidden
-                      </span>
-                    </div>
-                  )}
+                    {/* Layer Controls */}
+                    {illustration.layer && !illustration.layer.visible && (
+                      <div className="absolute bottom-2 left-2">
+                        <span className="px-2 py-0.5 text-xs bg-gray-600 text-white rounded-full">
+                          Hidden
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -582,6 +695,128 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
           })}
         </div>
       </div>
+
+      {/* Fullscreen Image Modal */}
+      {fullscreenImage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCloseFullscreen();
+            }
+          }}
+        >
+          <div className="relative w-full h-full flex items-center justify-center p-4">
+            
+            {/* Close Button */}
+            <button
+              className="absolute top-4 right-4 p-3 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all z-10"
+              onClick={handleCloseFullscreen}
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Navigation Buttons */}
+            {scene.illustrations.length > 1 && (
+              <>
+                <button
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 p-3 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all z-10"
+                  onClick={handlePrevious}
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 p-3 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all z-10"
+                  onClick={handleNext}
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            )}
+
+            {/* Zoom Controls */}
+            <div className="absolute top-4 left-4 flex gap-2 z-10">
+              <button
+                className="p-2 bg-black bg-opacity-50 text-white rounded hover:bg-opacity-70 transition-all"
+                onClick={handleZoomOut}
+                disabled={zoomLevel <= 25}
+              >
+                <ZoomOut className="w-5 h-5" />
+              </button>
+              <span className="px-3 py-2 bg-black bg-opacity-50 text-white rounded text-sm">
+                {zoomLevel}%
+              </span>
+              <button
+                className="p-2 bg-black bg-opacity-50 text-white rounded hover:bg-opacity-70 transition-all"
+                onClick={handleZoomIn}
+                disabled={zoomLevel >= 400}
+              >
+                <ZoomIn className="w-5 h-5" />
+              </button>
+              <button
+                className="p-2 bg-black bg-opacity-50 text-white rounded hover:bg-opacity-70 transition-all"
+                onClick={handleRotate}
+              >
+                <RotateCw className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Image Counter */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-black bg-opacity-50 text-white rounded text-sm">
+              {fullscreenImage.index + 1} of {scene.illustrations.length}
+            </div>
+
+            {/* Image Display */}
+            <div className="max-w-full max-h-full flex items-center justify-center overflow-hidden">
+              {fullscreenImage.illustration.type === 'ai-generated' && fullscreenImage.illustration.imageUrl ? (
+                <img
+                  src={fullscreenImage.illustration.imageUrl}
+                  alt={fullscreenImage.illustration.imagePrompt || 'AI generated'}
+                  className="max-w-full max-h-full object-contain transition-transform duration-300"
+                  style={{ 
+                    transform: `scale(${zoomLevel / 100}) rotate(${rotation}deg)`,
+                    maxWidth: zoomLevel > 100 ? 'none' : '100%',
+                    maxHeight: zoomLevel > 100 ? 'none' : '100%'
+                  }}
+                  draggable={false}
+                />
+              ) : (
+                (() => {
+                  const Icon = (LucideIcons as any)[fullscreenImage.illustration.iconName || 'Circle'] || LucideIcons.Circle;
+                  return (
+                    <Icon
+                      size={Math.min(400, zoomLevel * 4)}
+                      style={{ 
+                        color: fullscreenImage.illustration.color,
+                        transform: `rotate(${rotation}deg)`,
+                        filter: `brightness(${zoomLevel / 100})`
+                      }}
+                      strokeWidth={1.5}
+                    />
+                  );
+                })()
+              )}
+            </div>
+
+            {/* Image Info */}
+            <div className="absolute bottom-4 right-4 max-w-xs">
+              <div className="bg-black bg-opacity-50 text-white p-3 rounded-lg text-sm">
+                <div className="font-medium mb-1">
+                  {fullscreenImage.illustration.type === 'ai-generated' 
+                    ? `AI Generated (${fullscreenImage.illustration.style})` 
+                    : fullscreenImage.illustration.iconName}
+                </div>
+                {fullscreenImage.illustration.type === 'ai-generated' && fullscreenImage.illustration.imagePrompt && (
+                  <div className="text-gray-300 text-xs">{fullscreenImage.illustration.imagePrompt}</div>
+                )}
+                <div className="text-gray-400 text-xs mt-1">
+                  Size: {fullscreenImage.illustration.size}px | Rotation: {fullscreenImage.illustration.rotation}°
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Play, Pause, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Pause, Sparkles, Maximize, X } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 
 const animationVariants = {
@@ -63,6 +63,7 @@ export default function PreviewCanvas() {
   const { currentProject, selectScene, selectedSceneId } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const scenes = currentProject?.scenes.sort((a, b) => a.order - b.order) || [];
   const currentScene = scenes[currentIndex];
@@ -246,10 +247,19 @@ export default function PreviewCanvas() {
 
         {/* Style Badge */}
         {currentScene.defaultIllustrationStyle && hasAIImages && (
-          <div className="absolute top-4 right-4 bg-purple-600/90 text-white px-3 py-1 rounded-full text-xs font-medium">
+          <div className="absolute top-4 right-16 bg-purple-600/90 text-white px-3 py-1 rounded-full text-xs font-medium">
             {currentScene.defaultIllustrationStyle.replace('-', ' ')}
           </div>
         )}
+
+        {/* Fullscreen Button */}
+        <button
+          className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-all"
+          onClick={() => setIsFullscreen(true)}
+          title="View fullscreen"
+        >
+          <Maximize className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Controls */}
@@ -320,6 +330,160 @@ export default function PreviewCanvas() {
           </div>
         </div>
       </div>
+
+      {/* Fullscreen Preview Modal */}
+      {isFullscreen && (
+        <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center">
+          <div className="relative w-full h-full flex flex-col">
+            
+            {/* Close Button */}
+            <button
+              className="absolute top-4 right-4 p-3 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all z-10"
+              onClick={() => setIsFullscreen(false)}
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Fullscreen Canvas */}
+            <div className="flex-1 relative aspect-video mx-8 mt-8 bg-gray-900 rounded-lg overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentScene.id}
+                  className="absolute inset-0"
+                  style={{ 
+                    background: currentScene.backgroundGradient 
+                      ? `linear-gradient(${currentScene.backgroundGradient.angle || 180}deg, ${currentScene.backgroundGradient.colors.join(', ')})`
+                      : currentScene.backgroundColor 
+                  }}
+                  {...animationVariant}
+                  transition={{ duration: 0.5 }}
+                >
+                  {/* Illustrations */}
+                  <div className="relative w-full h-full">
+                    {currentScene.illustrations
+                      .filter(ill => ill.layer?.visible !== false)
+                      .sort((a, b) => (a.layer?.zIndex || 0) - (b.layer?.zIndex || 0))
+                      .map((illustration, idx) => {
+                        const illustrationAnimation = illustration.animationParams?.type 
+                          ? animationVariants[illustration.animationParams.type] 
+                          : animationVariant;
+
+                        const delay = illustration.animationParams?.delay || (idx * 0.1);
+                        const duration = illustration.animationParams?.duration || 0.3;
+
+                        return (
+                          <motion.div
+                            key={illustration.id}
+                            className="absolute"
+                            style={{
+                              left: `${illustration.position.x}%`,
+                              top: `${illustration.position.y}%`,
+                              transform: `translate(-50%, -50%) rotate(${illustration.rotation}deg)`,
+                              opacity: (illustration.layer?.opacity || 100) / 100,
+                              zIndex: illustration.layer?.zIndex || 0,
+                            }}
+                            initial={illustrationAnimation.initial}
+                            animate={illustrationAnimation.animate}
+                            transition={{ delay, duration }}
+                          >
+                            {illustration.type === 'ai-generated' && illustration.imageUrl ? (
+                              <div className="relative group">
+                                <img
+                                  src={illustration.imageUrl}
+                                  alt={illustration.imagePrompt || 'AI generated illustration'}
+                                  style={{
+                                    width: `${illustration.size * 1.5}px`,
+                                    height: `${illustration.size * 1.5}px`,
+                                    objectFit: 'contain',
+                                    filter: illustration.effects?.shadow 
+                                      ? `drop-shadow(${illustration.effects.shadow.offsetX}px ${illustration.effects.shadow.offsetY}px ${illustration.effects.shadow.blur}px ${illustration.effects.shadow.color})`
+                                      : undefined,
+                                  }}
+                                  className="rounded-lg"
+                                />
+                                {/* AI Badge */}
+                                <div className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <div className="bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+                                    <Sparkles className="w-4 h-4" />
+                                    AI
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              (() => {
+                                const Icon = (LucideIcons as any)[illustration.iconName || 'Circle'] || LucideIcons.Circle;
+                                return (
+                                  <Icon 
+                                    size={illustration.size * 1.5} 
+                                    strokeWidth={1.5}
+                                    style={{
+                                      color: illustration.color,
+                                      filter: illustration.effects?.shadow 
+                                        ? `drop-shadow(${illustration.effects.shadow.offsetX}px ${illustration.effects.shadow.offsetY}px ${illustration.effects.shadow.blur}px ${illustration.effects.shadow.color})`
+                                        : illustration.effects?.glow
+                                        ? `drop-shadow(0 0 ${illustration.effects.glow.size}px ${illustration.effects.glow.color})`
+                                        : undefined,
+                                    }}
+                                  />
+                                );
+                              })()
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                  </div>
+
+                  {/* Text Overlay */}
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-12">
+                    <motion.h3
+                      className="text-4xl font-bold mb-4"
+                      style={{ color: currentScene.textColor }}
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      {currentScene.title}
+                    </motion.h3>
+                    <motion.p
+                      className="text-2xl"
+                      style={{ color: currentScene.textColor, opacity: 0.9 }}
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.4 }}
+                    >
+                      {currentScene.voiceover}
+                    </motion.p>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Scene Info */}
+            <div className="mx-8 mb-8 mt-4 bg-black/50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-white text-xl font-semibold">{currentScene.title}</h4>
+                  <p className="text-gray-300 text-sm">{currentScene.description}</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-gray-300 text-sm">
+                    {currentIndex + 1} of {scenes.length}
+                  </span>
+                  <span className="text-gray-300 text-sm">
+                    {currentScene.duration}s
+                  </span>
+                  {hasAIImages && (
+                    <span className="px-3 py-1 bg-purple-600/90 text-white rounded-full text-sm flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      AI Enhanced
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
