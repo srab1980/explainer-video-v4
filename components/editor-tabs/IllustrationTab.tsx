@@ -2,9 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import type { Scene } from '@/lib/types';
+import type { Scene, IllustrationStyle, VisualEffects } from '@/lib/types';
 import * as LucideIcons from 'lucide-react';
-import { Search, Plus, Trash2, RotateCw } from 'lucide-react';
+import { Search, Plus, Trash2, Wand2, Layers, Sparkles, AlertCircle } from 'lucide-react';
 import Fuse from 'fuse.js';
 
 interface IllustrationTabProps {
@@ -16,10 +16,34 @@ const lucideIconNames = Object.keys(LucideIcons).filter(
   (name) => name !== 'createLucideIcon' && name !== 'default'
 );
 
+const ILLUSTRATION_STYLES: Array<{ value: IllustrationStyle; label: string; description: string }> = [
+  { value: 'modern-flat', label: 'Modern Flat', description: 'Clean, minimalist, geometric shapes' },
+  { value: 'hand-drawn', label: 'Hand-Drawn', description: 'Sketch-like, artistic, organic' },
+  { value: 'corporate', label: 'Corporate', description: 'Professional, polished, business' },
+  { value: 'custom', label: 'Custom', description: 'Your own style description' },
+];
+
 export default function IllustrationTab({ scene }: IllustrationTabProps) {
-  const { updateIllustration, addIllustration, deleteIllustration } = useStore();
+  const { 
+    updateIllustration, 
+    addIllustration, 
+    deleteIllustration,
+    generateAIIllustration,
+    isGeneratingImage,
+    currentProject,
+    selectedIllustrationIds,
+    selectIllustrations,
+    batchUpdateIllustrations,
+  } = useStore();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIllustrationId, setSelectedIllustrationId] = useState<string | null>(null);
+  const [showAIGenerator, setShowAIGenerator] = useState(false);
+  const [aiPrompt, setAIPrompt] = useState('');
+  const [selectedStyle, setSelectedStyle] = useState<IllustrationStyle>('modern-flat');
+  const [customStyleDesc, setCustomStyleDesc] = useState('');
+  const [showEffectsPanel, setShowEffectsPanel] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   // Fuzzy search setup
   const fuse = useMemo(
@@ -38,55 +62,229 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
 
   const handleAddIllustration = (iconName: string) => {
     addIllustration(scene.id, {
+      type: 'icon',
       iconName,
       iconLibrary: 'lucide',
       position: { x: 50, y: 50 },
       size: 80,
       color: '#8B5CF6',
       rotation: 0,
+      layer: {
+        zIndex: scene.illustrations.length,
+        locked: false,
+        visible: true,
+        opacity: 100,
+      },
     });
+  };
+
+  const handleGenerateAI = async () => {
+    if (!aiPrompt.trim()) return;
+    
+    setGenerationError(null);
+    try {
+      await generateAIIllustration(
+        scene.id, 
+        aiPrompt, 
+        selectedStyle,
+        selectedStyle === 'custom' ? customStyleDesc : undefined
+      );
+      setAIPrompt('');
+      setShowAIGenerator(false);
+    } catch (error: any) {
+      setGenerationError(error.message || 'Failed to generate image');
+    }
   };
 
   const selectedIllustration = scene.illustrations.find(
     (ill) => ill.id === selectedIllustrationId
   );
 
+  const usageInfo = currentProject?.usageTracking;
+
   return (
     <div className="space-y-6">
+      {/* Usage Tracking */}
+      {usageInfo && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-blue-600" />
+          <span className="text-sm text-blue-900">
+            AI Images Generated: <strong>{usageInfo.dalleGenerations}</strong> total
+          </span>
+        </div>
+      )}
+
+      {/* AI Generator Button */}
+      <div className="flex gap-2">
+        <button
+          className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all flex items-center justify-center gap-2 font-medium shadow-lg"
+          onClick={() => setShowAIGenerator(!showAIGenerator)}
+          disabled={isGeneratingImage}
+        >
+          <Wand2 className="w-5 h-5" />
+          {isGeneratingImage ? 'Generating...' : 'Generate AI Illustration'}
+        </button>
+      </div>
+
+      {/* AI Generator Panel */}
+      {showAIGenerator && (
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-4 space-y-4">
+          <h4 className="font-semibold text-purple-900 flex items-center gap-2">
+            <Sparkles className="w-5 h-5" />
+            AI Illustration Generator
+          </h4>
+
+          {/* Style Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Illustration Style
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {ILLUSTRATION_STYLES.map((style) => (
+                <button
+                  key={style.value}
+                  className={`p-3 rounded-lg border-2 text-left transition-all ${
+                    selectedStyle === style.value
+                      ? 'border-purple-500 bg-purple-100'
+                      : 'border-gray-200 hover:border-purple-300'
+                  }`}
+                  onClick={() => setSelectedStyle(style.value)}
+                >
+                  <div className="font-medium text-sm">{style.label}</div>
+                  <div className="text-xs text-gray-600 mt-1">{style.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom Style Description */}
+          {selectedStyle === 'custom' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Custom Style Description
+              </label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="e.g., watercolor painting style, soft colors..."
+                value={customStyleDesc}
+                onChange={(e) => setCustomStyleDesc(e.target.value)}
+              />
+            </div>
+          )}
+
+          {/* Prompt Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              What do you want to illustrate?
+            </label>
+            <textarea
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+              placeholder="e.g., a person using a smartphone, team collaboration, rocket launching..."
+              rows={3}
+              value={aiPrompt}
+              onChange={(e) => setAIPrompt(e.target.value)}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Tip: Scene context - {scene.description}
+            </p>
+          </div>
+
+          {/* Error Display */}
+          {generationError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-900">Generation Failed</p>
+                <p className="text-xs text-red-700 mt-1">{generationError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Generate Button */}
+          <button
+            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleGenerateAI}
+            disabled={isGeneratingImage || !aiPrompt.trim() || (selectedStyle === 'custom' && !customStyleDesc.trim())}
+          >
+            {isGeneratingImage ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Generating with DALL-E 3...
+              </span>
+            ) : (
+              'Generate Image'
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Current Illustrations */}
       <div>
-        <h3 className="text-lg font-semibold text-foreground mb-3">
+        <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Layers className="w-5 h-5" />
           Current Illustrations ({scene.illustrations.length})
         </h3>
         {scene.illustrations.length === 0 ? (
           <p className="text-sm text-gray-600 py-4 text-center bg-muted rounded-lg">
-            No illustrations yet. Add icons from the library below.
+            No illustrations yet. Generate AI images or add icons from the library below.
           </p>
         ) : (
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {scene.illustrations.map((illustration) => {
-              const Icon = (LucideIcons as any)[illustration.iconName] || LucideIcons.Circle;
               const isSelected = selectedIllustrationId === illustration.id;
               return (
                 <div
                   key={illustration.id}
                   className={`relative p-4 border-2 rounded-lg flex flex-col items-center gap-2 cursor-pointer transition-all ${
                     isSelected
-                      ? 'border-primary bg-primary bg-opacity-5'
+                      ? 'border-purple-500 bg-purple-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                   onClick={() => setSelectedIllustrationId(illustration.id)}
                 >
-                  <Icon
-                    size={40}
-                    style={{ color: illustration.color }}
-                    strokeWidth={1.5}
-                  />
+                  {/* Type Badge */}
+                  <div className="absolute top-2 left-2">
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                      illustration.type === 'ai-generated'
+                        ? 'bg-purple-100 text-purple-700'
+                        : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {illustration.type === 'ai-generated' ? 'AI' : 'Icon'}
+                    </span>
+                  </div>
+
+                  {/* Illustration Display */}
+                  <div className="w-full h-24 flex items-center justify-center">
+                    {illustration.type === 'ai-generated' && illustration.imageUrl ? (
+                      <img
+                        src={illustration.imageUrl}
+                        alt={illustration.imagePrompt || 'AI generated'}
+                        className="max-w-full max-h-full object-contain rounded"
+                      />
+                    ) : (
+                      (() => {
+                        const Icon = (LucideIcons as any)[illustration.iconName || 'Circle'] || LucideIcons.Circle;
+                        return (
+                          <Icon
+                            size={40}
+                            style={{ color: illustration.color }}
+                            strokeWidth={1.5}
+                          />
+                        );
+                      })()
+                    )}
+                  </div>
+
                   <span className="text-xs text-gray-600 truncate w-full text-center">
-                    {illustration.iconName}
+                    {illustration.type === 'ai-generated' 
+                      ? `AI: ${illustration.style}` 
+                      : illustration.iconName}
                   </span>
+
+                  {/* Delete Button */}
                   <button
-                    className="absolute top-1 right-1 p-1 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+                    className="absolute top-2 right-2 p-1 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteIllustration(scene.id, illustration.id);
@@ -97,6 +295,15 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
+
+                  {/* Layer Controls */}
+                  {illustration.layer && !illustration.layer.visible && (
+                    <div className="absolute bottom-2 left-2">
+                      <span className="px-2 py-0.5 text-xs bg-gray-600 text-white rounded-full">
+                        Hidden
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -106,123 +313,236 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
 
       {/* Illustration Editor */}
       {selectedIllustration && (
-        <div className="p-4 bg-muted rounded-lg space-y-4">
-          <h4 className="font-medium text-foreground">Edit Illustration</h4>
-
-          {/* Size */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Size: {selectedIllustration.size}px
-            </label>
-            <input
-              type="range"
-              min="40"
-              max="200"
-              step="10"
-              value={selectedIllustration.size}
-              onChange={(e) =>
-                updateIllustration(scene.id, selectedIllustration.id, {
-                  size: parseInt(e.target.value),
-                })
-              }
-              className="w-full"
-            />
+        <div className="p-4 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-lg space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium text-foreground">Edit Illustration</h4>
+            <button
+              className="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+              onClick={() => setShowEffectsPanel(!showEffectsPanel)}
+            >
+              {showEffectsPanel ? 'Basic' : 'Effects'}
+            </button>
           </div>
 
-          {/* Color */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Color
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                className="w-16 h-10 rounded-lg border border-border cursor-pointer"
-                value={selectedIllustration.color}
-                onChange={(e) =>
-                  updateIllustration(scene.id, selectedIllustration.id, {
-                    color: e.target.value,
-                  })
-                }
-              />
-              <input
-                type="text"
-                className="flex-1 px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
-                value={selectedIllustration.color}
-                onChange={(e) =>
-                  updateIllustration(scene.id, selectedIllustration.id, {
-                    color: e.target.value,
-                  })
-                }
-              />
+          {!showEffectsPanel ? (
+            <>
+              {/* Basic Controls */}
+              {/* Size */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Size: {selectedIllustration.size}px
+                </label>
+                <input
+                  type="range"
+                  min="40"
+                  max={selectedIllustration.type === 'ai-generated' ? '600' : '200'}
+                  step="10"
+                  value={selectedIllustration.size}
+                  onChange={(e) =>
+                    updateIllustration(scene.id, selectedIllustration.id, {
+                      size: parseInt(e.target.value),
+                    })
+                  }
+                  className="w-full"
+                />
+              </div>
+
+              {/* Color (for icons) */}
+              {selectedIllustration.type === 'icon' && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Color
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      className="w-16 h-10 rounded-lg border border-border cursor-pointer"
+                      value={selectedIllustration.color}
+                      onChange={(e) =>
+                        updateIllustration(scene.id, selectedIllustration.id, {
+                          color: e.target.value,
+                        })
+                      }
+                    />
+                    <input
+                      type="text"
+                      className="flex-1 px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-sm"
+                      value={selectedIllustration.color}
+                      onChange={(e) =>
+                        updateIllustration(scene.id, selectedIllustration.id, {
+                          color: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Rotation */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Rotation: {selectedIllustration.rotation}°
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="360"
+                  step="15"
+                  value={selectedIllustration.rotation}
+                  onChange={(e) =>
+                    updateIllustration(scene.id, selectedIllustration.id, {
+                      rotation: parseInt(e.target.value),
+                    })
+                  }
+                  className="w-full"
+                />
+              </div>
+
+              {/* Position */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    X: {selectedIllustration.position.x.toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={selectedIllustration.position.x}
+                    onChange={(e) =>
+                      updateIllustration(scene.id, selectedIllustration.id, {
+                        position: {
+                          ...selectedIllustration.position,
+                          x: parseInt(e.target.value),
+                        },
+                      })
+                    }
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Y: {selectedIllustration.position.y.toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={selectedIllustration.position.y}
+                    onChange={(e) =>
+                      updateIllustration(scene.id, selectedIllustration.id, {
+                        position: {
+                          ...selectedIllustration.position,
+                          y: parseInt(e.target.value),
+                        },
+                      })
+                    }
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Layer Controls */}
+              {selectedIllustration.layer && (
+                <div className="pt-4 border-t border-gray-300">
+                  <h5 className="text-sm font-medium text-foreground mb-3">Layer Settings</h5>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Opacity */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Opacity: {selectedIllustration.layer.opacity}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={selectedIllustration.layer.opacity}
+                        onChange={(e) =>
+                          updateIllustration(scene.id, selectedIllustration.id, {
+                            layer: {
+                              ...selectedIllustration.layer!,
+                              opacity: parseInt(e.target.value),
+                            },
+                          })
+                        }
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Z-Index */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Layer: {selectedIllustration.layer.zIndex}
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="10"
+                        value={selectedIllustration.layer.zIndex}
+                        onChange={(e) =>
+                          updateIllustration(scene.id, selectedIllustration.id, {
+                            layer: {
+                              ...selectedIllustration.layer!,
+                              zIndex: parseInt(e.target.value),
+                            },
+                          })
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Toggle Controls */}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      className={`flex-1 px-3 py-2 text-sm rounded-lg transition-colors ${
+                        selectedIllustration.layer.visible
+                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                          : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                      }`}
+                      onClick={() =>
+                        updateIllustration(scene.id, selectedIllustration.id, {
+                          layer: {
+                            ...selectedIllustration.layer!,
+                            visible: !selectedIllustration.layer!.visible,
+                          },
+                        })
+                      }
+                    >
+                      {selectedIllustration.layer.visible ? 'Visible' : 'Hidden'}
+                    </button>
+                    <button
+                      className={`flex-1 px-3 py-2 text-sm rounded-lg transition-colors ${
+                        selectedIllustration.layer.locked
+                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                          : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                      }`}
+                      onClick={() =>
+                        updateIllustration(scene.id, selectedIllustration.id, {
+                          layer: {
+                            ...selectedIllustration.layer!,
+                            locked: !selectedIllustration.layer!.locked,
+                          },
+                        })
+                      }
+                    >
+                      {selectedIllustration.layer.locked ? 'Locked' : 'Unlocked'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Advanced visual effects coming soon: shadows, glows, gradients, and more!
+              </p>
+              {/* Effects panel will be expanded in future iterations */}
             </div>
-          </div>
-
-          {/* Rotation */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Rotation: {selectedIllustration.rotation}°
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="360"
-              step="15"
-              value={selectedIllustration.rotation}
-              onChange={(e) =>
-                updateIllustration(scene.id, selectedIllustration.id, {
-                  rotation: parseInt(e.target.value),
-                })
-              }
-              className="w-full"
-            />
-          </div>
-
-          {/* Position */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                X Position: {selectedIllustration.position.x.toFixed(0)}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                value={selectedIllustration.position.x}
-                onChange={(e) =>
-                  updateIllustration(scene.id, selectedIllustration.id, {
-                    position: {
-                      ...selectedIllustration.position,
-                      x: parseInt(e.target.value),
-                    },
-                  })
-                }
-                className="w-full"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Y Position: {selectedIllustration.position.y.toFixed(0)}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                value={selectedIllustration.position.y}
-                onChange={(e) =>
-                  updateIllustration(scene.id, selectedIllustration.id, {
-                    position: {
-                      ...selectedIllustration.position,
-                      y: parseInt(e.target.value),
-                    },
-                  })
-                }
-                className="w-full"
-              />
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -237,7 +557,7 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
             placeholder="Search icons... (e.g. heart, user, star)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -245,18 +565,18 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
         </div>
 
         {/* Icon Grid */}
-        <div className="grid grid-cols-8 gap-2 max-h-80 overflow-y-auto">
+        <div className="grid grid-cols-8 gap-2 max-h-80 overflow-y-auto p-2 bg-white rounded-lg border border-gray-200">
           {filteredIcons.map((iconName) => {
             const Icon = (LucideIcons as any)[iconName];
             if (!Icon) return null;
             return (
               <button
                 key={iconName}
-                className="p-3 border border-gray-200 rounded-lg hover:border-primary hover:bg-primary hover:bg-opacity-5 transition-all group"
+                className="p-3 border border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all group"
                 onClick={() => handleAddIllustration(iconName)}
                 title={iconName}
               >
-                <Icon className="w-6 h-6 text-gray-600 group-hover:text-primary" strokeWidth={1.5} />
+                <Icon className="w-6 h-6 text-gray-600 group-hover:text-purple-600" strokeWidth={1.5} />
               </button>
             );
           })}

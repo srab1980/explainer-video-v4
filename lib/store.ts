@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { StoreState, Project, Scene, Illustration } from './types';
+import type { StoreState, Project, Scene, Illustration, IllustrationStyle } from './types';
 
 const STORAGE_KEY = 'storyvid-project';
 
@@ -8,9 +8,14 @@ export const useStore = create<StoreState>((set, get) => ({
   // Initial state
   currentProject: null,
   selectedSceneId: null,
+  selectedIllustrationIds: [],
   isGenerating: false,
+  isGeneratingImage: false,
   isSaving: false,
   lastSaved: null,
+  showGridGuides: false,
+  snapToGrid: false,
+  gridSize: 20,
 
   // Project actions
   createProject: (name: string) => {
@@ -21,6 +26,12 @@ export const useStore = create<StoreState>((set, get) => ({
       scenes: [],
       createdAt: new Date(),
       updatedAt: new Date(),
+      defaultIllustrationStyle: 'modern-flat',
+      colorPalette: ['#8B5CF6', '#14B8A6', '#F59E0B', '#EF4444', '#3B82F6', '#10B981', '#EC4899', '#F97316'],
+      usageTracking: {
+        dalleGenerations: 0,
+        lastReset: new Date(),
+      },
     };
     set({ currentProject: project });
     get().saveToLocalStorage();
@@ -32,6 +43,9 @@ export const useStore = create<StoreState>((set, get) => ({
       const project = JSON.parse(stored);
       project.createdAt = new Date(project.createdAt);
       project.updatedAt = new Date(project.updatedAt);
+      if (project.usageTracking) {
+        project.usageTracking.lastReset = new Date(project.usageTracking.lastReset);
+      }
       set({ currentProject: project });
     }
   },
@@ -64,13 +78,19 @@ export const useStore = create<StoreState>((set, get) => ({
     }
   },
 
-  generateScenes: async (script: string) => {
+  generateScenes: async (script: string, options = {}) => {
     set({ isGenerating: true });
     try {
+      const { useAIImages = false, style = 'modern-flat' } = options;
+      
       const response = await fetch('/api/generate-scenes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ script }),
+        body: JSON.stringify({ 
+          script, 
+          useAIImages,
+          illustrationStyle: style 
+        }),
       });
 
       if (!response.ok) {
@@ -87,11 +107,22 @@ export const useStore = create<StoreState>((set, get) => ({
           order: index,
         }));
 
+        // Update usage tracking if AI images were used
+        const usageTracking = currentProject.usageTracking || {
+          dalleGenerations: 0,
+          lastReset: new Date(),
+        };
+
+        if (useAIImages) {
+          usageTracking.dalleGenerations += scenes.length;
+        }
+
         set({
           currentProject: {
             ...currentProject,
             scenes,
             updatedAt: new Date(),
+            usageTracking,
           },
         });
         get().saveToLocalStorage();
@@ -213,6 +244,8 @@ export const useStore = create<StoreState>((set, get) => ({
       const newIllustration: Illustration = {
         ...illustration,
         id: uuidv4(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
       set({
         currentProject: {
@@ -240,7 +273,9 @@ export const useStore = create<StoreState>((set, get) => ({
               ? {
                   ...scene,
                   illustrations: scene.illustrations.map((ill) =>
-                    ill.id === illustrationId ? { ...ill, ...updates } : ill
+                    ill.id === illustrationId 
+                      ? { ...ill, ...updates, updatedAt: new Date() } 
+                      : ill
                   ),
                 }
               : scene
@@ -273,8 +308,127 @@ export const useStore = create<StoreState>((set, get) => ({
     }
   },
 
+  generateAIIllustration: async (
+    sceneId: string, 
+    prompt: string, 
+    style: IllustrationStyle,
+    customStyleDescription?: string
+  ) => {
+    set({ isGeneratingImage: true });
+    try {
+      const response = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt, 
+          style, 
+          customStyleDescription,
+          size: '1024x1024',
+          quality: 'standard',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate image');
+      }
+
+      const data = await response.json();
+      const { currentProject } = get();
+
+      if (currentProject && data.imageUrl) {
+        // Find the scene and get a suitable position
+        const scene = currentProject.scenes.find(s => s.id === sceneId);
+        const illustrationCount = scene?.illustrations.length || 0;
+        
+        const newIllustration: Omit<Illustration, 'id'> = {
+          type: 'ai-generated',
+          imageUrl: data.imageUrl,
+          imagePrompt: data.prompt,
+          style,
+          customStyleDescription,
+          position: { x: 50, y: 50 },
+          size: 400,
+          color: scene?.backgroundColor || '#8B5CF6',
+          rotation: 0,
+          layer: {
+            zIndex: illustrationCount,
+            locked: false,
+            visible: true,
+            opacity: 100,
+          },
+        };
+
+        get().addIllustration(sceneId, newIllustration);
+
+        // Update usage tracking
+        const usageTracking = currentProject.usageTracking || {
+          dalleGenerations: 0,
+          lastReset: new Date(),
+        };
+        usageTracking.dalleGenerations += 1;
+
+        set({
+          currentProject: {
+            ...currentProject,
+            usageTracking,
+          },
+        });
+        get().saveToLocalStorage();
+      }
+    } catch (error) {
+      console.error('Error generating AI illustration:', error);
+      throw error;
+    } finally {
+      set({ isGeneratingImage: false });
+    }
+  },
+
+  // Multi-select actions
+  selectIllustrations: (illustrationIds: string[]) => {
+    set({ selectedIllustrationIds: illustrationIds });
+  },
+
+  batchUpdateIllustrations: (sceneId: string, illustrationIds: string[], updates: Partial<Illustration>) => {
+    const { currentProject } = get();
+    if (currentProject) {
+      set({
+        currentProject: {
+          ...currentProject,
+          scenes: currentProject.scenes.map((scene) =>
+            scene.id === sceneId
+              ? {
+                  ...scene,
+                  illustrations: scene.illustrations.map((ill) =>
+                    illustrationIds.includes(ill.id)
+                      ? { ...ill, ...updates, updatedAt: new Date() }
+                      : ill
+                  ),
+                }
+              : scene
+          ),
+          updatedAt: new Date(),
+        },
+      });
+      get().saveToLocalStorage();
+    }
+  },
+
   selectScene: (sceneId: string | null) => {
-    set({ selectedSceneId: sceneId });
+    set({ selectedSceneId: sceneId, selectedIllustrationIds: [] });
+  },
+
+  // UI settings
+  toggleGridGuides: () => {
+    set((state) => ({ showGridGuides: !state.showGridGuides }));
+  },
+
+  toggleSnapToGrid: () => {
+    set((state) => ({ snapToGrid: !state.snapToGrid }));
+  },
+
+  setGridSize: (size: number) => {
+    set({ gridSize: size });
   },
 
   // Persistence

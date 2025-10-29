@@ -1,5 +1,8 @@
 import type { LayoutType, LayoutConfig } from './types';
 
+// Golden ratio constant
+const PHI = 1.618033988749895;
+
 export const getLayoutConfig = (type: LayoutType, count: number = 4): LayoutConfig => {
   const configs: Record<LayoutType, LayoutConfig> = {
     'horizontal-row': {
@@ -84,9 +87,39 @@ export const getLayoutConfig = (type: LayoutType, count: number = 4): LayoutConf
         { x: 25, y: 75, size: 60 },
       ].slice(0, count),
     },
+    'golden-ratio': {
+      type: 'golden-ratio',
+      positions: [
+        // Main focal point at golden ratio intersection (61.8%, 38.2%)
+        { x: 61.8, y: 38.2, size: 120 },
+        // Secondary element at complementary position
+        { x: 38.2, y: 61.8, size: 80 },
+        // Tertiary elements following golden spiral
+        { x: 23.6, y: 23.6, size: 60 },
+        { x: 76.4, y: 76.4, size: 70 },
+        // Additional elements along golden ratio lines
+        { x: 38.2, y: 38.2, size: 65 },
+        { x: 61.8, y: 61.8, size: 75 },
+      ].slice(0, count),
+    },
+    'rule-of-thirds': {
+      type: 'rule-of-thirds',
+      positions: [
+        // Primary intersections (33.3%, 66.7%)
+        { x: 33.3, y: 33.3, size: 100 },
+        { x: 66.7, y: 33.3, size: 100 },
+        { x: 33.3, y: 66.7, size: 100 },
+        { x: 66.7, y: 66.7, size: 100 },
+        // Along grid lines for additional elements
+        { x: 50, y: 33.3, size: 80 },
+        { x: 50, y: 66.7, size: 80 },
+        { x: 33.3, y: 50, size: 80 },
+        { x: 66.7, y: 50, size: 80 },
+      ].slice(0, count),
+    },
   };
 
-  return configs[type];
+  return configs[type] || configs['centered-large'];
 };
 
 export const applyLayoutToIllustrations = (
@@ -100,4 +133,47 @@ export const applyLayoutToIllustrations = (
     size: config.positions[index]?.size || 80,
     rotation: 0,
   }));
+};
+
+// Helper function to calculate golden ratio based position
+export const calculateGoldenRatioPosition = (
+  canvasWidth: number,
+  canvasHeight: number,
+  primary: boolean = true
+): { x: number; y: number } => {
+  if (primary) {
+    // Primary focal point at golden ratio intersection
+    return {
+      x: (canvasWidth / PHI),
+      y: (canvasHeight / PHI),
+    };
+  } else {
+    // Secondary focal point
+    return {
+      x: canvasWidth - (canvasWidth / PHI),
+      y: canvasHeight - (canvasHeight / PHI),
+    };
+  }
+};
+
+// Helper function to snap position to grid
+export const snapToGrid = (
+  position: { x: number; y: number },
+  gridSize: number
+): { x: number; y: number } => {
+  return {
+    x: Math.round(position.x / gridSize) * gridSize,
+    y: Math.round(position.y / gridSize) * gridSize,
+  };
+};
+
+// Helper function to check if position follows rule of thirds
+export const isOnThirdsLine = (
+  position: { x: number; y: number },
+  tolerance: number = 5
+): boolean => {
+  const thirds = [33.3, 50, 66.7];
+  const xOnLine = thirds.some(line => Math.abs(position.x - line) < tolerance);
+  const yOnLine = thirds.some(line => Math.abs(position.y - line) < tolerance);
+  return xOnLine || yOnLine;
 };
