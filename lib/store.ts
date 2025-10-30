@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { StoreState, Project, Scene, Illustration, IllustrationStyle, SupportedLanguage, StoryAnalysis, AISuggestion } from './types';
+import type { StoreState, Project, Scene, Illustration, IllustrationStyle, SupportedLanguage, StoryAnalysis, AISuggestion, AudioSettings, VideoRenderConfig, VideoRenderJob, IndustryTemplate, BrandIdentity } from './types';
 
 const STORAGE_KEY = 'storyvid-project';
 
@@ -24,6 +24,37 @@ export const useStore = create<StoreState>((set, get) => ({
   isAnalyzing: false,
   storyAnalysis: null,
   aiSuggestions: new Map(),
+  
+  // Video Production state
+  currentRenderJob: null,
+  isRendering: false,
+  renderProgress: 0,
+  audioSettings: {
+    voiceover: {
+      enabled: true,
+      voice: 'alloy',
+      gender: 'neutral',
+      style: 'professional',
+      speed: 1.0,
+      pitch: 0,
+      volume: 80,
+    },
+    backgroundMusic: {
+      enabled: false,
+      volume: 30,
+      fadeIn: 1,
+      fadeOut: 1,
+      loop: true,
+    },
+    soundEffects: {
+      enabled: true,
+      transitionSounds: true,
+      volume: 50,
+    },
+  },
+  selectedTemplate: null,
+  selectedBrand: null,
+  videoConfig: null,
 
   // Project actions
   createProject: (name: string) => {
@@ -664,6 +695,117 @@ export const useStore = create<StoreState>((set, get) => ({
 
   setGridSize: (size: number) => {
     set({ gridSize: size });
+  },
+
+  // Video Production actions
+  setVideoConfig: (config: VideoRenderConfig) => {
+    set({ videoConfig: config });
+  },
+
+  setAudioSettings: (settings: AudioSettings) => {
+    set({ audioSettings: settings });
+  },
+
+  setTemplate: (template: IndustryTemplate) => {
+    set({ selectedTemplate: template });
+  },
+
+  setBrand: (brand: BrandIdentity) => {
+    set({ selectedBrand: brand });
+  },
+
+  startVideoRender: async (config: VideoRenderConfig) => {
+    const { currentProject } = get();
+    if (!currentProject) {
+      throw new Error('No project loaded');
+    }
+
+    set({ isRendering: true, renderProgress: 0 });
+
+    try {
+      const response = await fetch('/api/render-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: currentProject.id,
+          config,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start render');
+      }
+
+      const jobId = data.jobId;
+
+      // Poll for job status
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusResponse = await fetch(`/api/render-video?jobId=${jobId}`);
+          const statusData = await statusResponse.json();
+
+          if (statusData.job) {
+            set({
+              currentRenderJob: statusData.job,
+              renderProgress: statusData.job.progress,
+            });
+
+            if (statusData.job.status === 'completed' || statusData.job.status === 'failed') {
+              clearInterval(pollInterval);
+              set({ isRendering: false });
+            }
+          }
+        } catch (error) {
+          console.error('Status poll error:', error);
+        }
+      }, 2000);
+
+      return jobId;
+    } catch (error) {
+      set({ isRendering: false });
+      throw error;
+    }
+  },
+
+  checkRenderStatus: async (jobId: string) => {
+    const response = await fetch(`/api/render-video?jobId=${jobId}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to check render status');
+    }
+
+    return data.job;
+  },
+
+  cancelRender: async (jobId: string) => {
+    set({
+      isRendering: false,
+      currentRenderJob: null,
+      renderProgress: 0,
+    });
+  },
+
+  generateVoiceover: async (text: string, voice: string, language: SupportedLanguage) => {
+    try {
+      const response = await fetch('/api/generate-voiceover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice, speed: 1.0, language }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate voiceover');
+      }
+
+      return data.audioUrl;
+    } catch (error) {
+      throw error;
+    }
   },
 
   // Persistence

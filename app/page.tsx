@@ -12,8 +12,13 @@ import StoryOptimizationPanel from '@/components/StoryOptimizationPanel';
 import SmartTransitionsPanel from '@/components/SmartTransitionsPanel';
 import AISuggestionsPanel from '@/components/AISuggestionsPanel';
 import LanguageSelector from '@/components/LanguageSelector';
+import VideoExportPanel from '@/components/VideoExportPanel';
+import AudioProductionPanel from '@/components/AudioProductionPanel';
+import TemplateSelector from '@/components/TemplateSelector';
+import BrandManager from '@/components/BrandManager';
 
 type AITab = 'optimization' | 'transitions' | 'suggestions' | 'language';
+type VideoTab = 'export' | 'audio' | 'templates' | 'brand';
 
 export default function Home() {
   const {
@@ -27,6 +32,8 @@ export default function Home() {
   const [isClient, setIsClient] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [activeAITab, setActiveAITab] = useState<AITab>('optimization');
+  const [showVideoPanel, setShowVideoPanel] = useState(false);
+  const [activeVideoTab, setActiveVideoTab] = useState<VideoTab>('export');
 
   useEffect(() => {
     setIsClient(true);
@@ -71,19 +78,23 @@ export default function Home() {
                 <>
                   <button
                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-all"
-                    onClick={() => setShowAIPanel(!showAIPanel)}
+                    onClick={() => {
+                      setShowAIPanel(!showAIPanel);
+                      setShowVideoPanel(false);
+                    }}
                   >
                     <Bot className="w-4 h-4" />
                     Enhanced AI
                   </button>
                   <button
-                    className="flex items-center gap-2 px-4 py-2 bg-secondary text-white rounded-lg hover:bg-opacity-90 transition-all"
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-lg hover:opacity-90 transition-all"
                     onClick={() => {
-                      alert('Export feature coming soon!');
+                      setShowVideoPanel(!showVideoPanel);
+                      setShowAIPanel(false);
                     }}
                   >
                     <Download className="w-4 h-4" />
-                    Export
+                    Video Production
                   </button>
                 </>
               )}
@@ -134,6 +145,76 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Video Production Panel */}
+      {showVideoPanel && (
+        <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl z-40 overflow-hidden flex flex-col border-l border-gray-200">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-green-50">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Download className="w-6 h-6 text-blue-600" />
+              Video Production
+            </h2>
+            <button
+              onClick={() => setShowVideoPanel(false)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Video Tab Navigation */}
+          <div className="grid grid-cols-4 border-b border-gray-200">
+            <button
+              onClick={() => setActiveVideoTab('export')}
+              className={`px-2 py-3 text-xs font-medium transition-colors ${
+                activeVideoTab === 'export'
+                  ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Export
+            </button>
+            <button
+              onClick={() => setActiveVideoTab('audio')}
+              className={`px-2 py-3 text-xs font-medium transition-colors ${
+                activeVideoTab === 'audio'
+                  ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Audio
+            </button>
+            <button
+              onClick={() => setActiveVideoTab('templates')}
+              className={`px-2 py-3 text-xs font-medium transition-colors ${
+                activeVideoTab === 'templates'
+                  ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Templates
+            </button>
+            <button
+              onClick={() => setActiveVideoTab('brand')}
+              className={`px-2 py-3 text-xs font-medium transition-colors ${
+                activeVideoTab === 'brand'
+                  ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Brand
+            </button>
+          </div>
+
+          {/* Video Panel Content */}
+          <div className="flex-1 overflow-hidden">
+            {activeVideoTab === 'export' && <VideoExportPanel />}
+            {activeVideoTab === 'audio' && <AudioProductionPanel />}
+            {activeVideoTab === 'templates' && <TemplateSelector />}
+            {activeVideoTab === 'brand' && <BrandManager />}
+          </div>
+        </div>
+      )}
 
       {/* Enhanced AI Control Panel */}
       {showAIPanel && (

@@ -399,6 +399,279 @@ export interface CulturalAdaptation {
   reasoning: string;
 }
 
+// ========================================
+// VIDEO PRODUCTION & EXPORT SYSTEM
+// ========================================
+
+// Video export formats
+export type VideoFormat = 'mp4' | 'webm' | 'mov';
+export type VideoQuality = '480p' | '720p' | '1080p' | '4k';
+export type VideoPlatform = 'youtube' | 'instagram' | 'linkedin' | 'instagram-story' | 'twitter' | 'custom';
+
+// Platform-specific video specifications
+export interface PlatformSpec {
+  platform: VideoPlatform;
+  aspectRatio: string; // e.g., '16:9', '1:1', '9:16'
+  width: number;
+  height: number;
+  maxDuration: number; // in seconds
+  recommendedBitrate: string;
+  recommendedFormat: VideoFormat;
+}
+
+// Audio settings
+export type VoiceGender = 'male' | 'female' | 'neutral';
+export type VoiceStyle = 'professional' | 'friendly' | 'energetic' | 'calm' | 'authoritative';
+
+export interface AudioSettings {
+  voiceover: {
+    enabled: boolean;
+    voice: string; // OpenAI TTS voice ID
+    gender: VoiceGender;
+    style: VoiceStyle;
+    speed: number; // 0.5 - 2.0
+    pitch: number; // -12 to +12 semitones
+    volume: number; // 0-100
+  };
+  backgroundMusic: {
+    enabled: boolean;
+    trackUrl?: string;
+    trackName?: string;
+    volume: number; // 0-100
+    fadeIn: number; // seconds
+    fadeOut: number; // seconds
+    loop: boolean;
+  };
+  soundEffects: {
+    enabled: boolean;
+    transitionSounds: boolean;
+    volume: number; // 0-100
+  };
+}
+
+// Industry template types
+export type IndustryTemplate = 
+  | 'saas-product-demo'
+  | 'product-launch'
+  | 'educational-tutorial'
+  | 'service-explanation'
+  | 'startup-pitch'
+  | 'company-culture'
+  | 'testimonial'
+  | 'how-it-works'
+  | 'feature-highlight'
+  | 'custom';
+
+export interface TemplatePreset {
+  id: string;
+  name: string;
+  industry: IndustryTemplate;
+  description: string;
+  thumbnail?: string;
+  
+  // Template styling
+  defaultColors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    background: string;
+    text: string;
+  };
+  
+  defaultAnimations: AnimationType[];
+  defaultLayout: LayoutType;
+  defaultDuration: number; // seconds per scene
+  
+  // Template-specific settings
+  includesIntro: boolean;
+  includesOutro: boolean;
+  textStyle: {
+    titleFont: string;
+    bodyFont: string;
+    titleSize: number;
+    bodySize: number;
+  };
+}
+
+// Brand identity configuration
+export interface BrandIdentity {
+  id: string;
+  name: string;
+  
+  // Colors
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    background: string;
+    text: string;
+    custom: string[]; // Additional brand colors
+  };
+  
+  // Typography
+  typography: {
+    headingFont: string;
+    bodyFont: string;
+    fontSizes: {
+      h1: number;
+      h2: number;
+      body: number;
+      caption: number;
+    };
+  };
+  
+  // Logo
+  logo?: {
+    url: string;
+    position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
+    size: number; // 0-100
+    opacity: number; // 0-100
+  };
+  
+  // Watermark
+  watermark?: {
+    text?: string;
+    imageUrl?: string;
+    position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+    opacity: number; // 0-100
+  };
+}
+
+// Video rendering configuration
+export interface VideoRenderConfig {
+  // Output settings
+  format: VideoFormat;
+  quality: VideoQuality;
+  platform: VideoPlatform;
+  customDimensions?: {
+    width: number;
+    height: number;
+  };
+  
+  // Frame settings
+  fps: 30 | 60;
+  codec: 'h264' | 'h265' | 'vp9';
+  bitrate?: string; // e.g., '5000k'
+  
+  // Audio settings
+  audio: AudioSettings;
+  
+  // Brand and template
+  brand?: BrandIdentity;
+  template?: IndustryTemplate;
+  
+  // Advanced options
+  includeSubtitles: boolean;
+  subtitleLanguage?: SupportedLanguage;
+  includeProgressBar: boolean;
+  
+  // Intro/Outro
+  customIntro?: {
+    enabled: boolean;
+    duration: number;
+    text?: string;
+    imageUrl?: string;
+  };
+  customOutro?: {
+    enabled: boolean;
+    duration: number;
+    text?: string;
+    callToAction?: string;
+    ctaUrl?: string;
+  };
+}
+
+// Video rendering job
+export interface VideoRenderJob {
+  id: string;
+  projectId: string;
+  config: VideoRenderConfig;
+  status: 'pending' | 'processing' | 'rendering' | 'encoding' | 'completed' | 'failed';
+  progress: number; // 0-100
+  currentStep: string;
+  startTime: number;
+  endTime?: number;
+  outputUrl?: string;
+  error?: string;
+  estimatedTimeRemaining?: number; // in seconds
+}
+
+// Motion graphics text animation
+export type TextAnimationType = 
+  | 'fade-in'
+  | 'slide-up'
+  | 'slide-down'
+  | 'slide-left'
+  | 'slide-right'
+  | 'type-writer'
+  | 'letter-by-letter'
+  | 'word-by-word'
+  | 'scale-in'
+  | 'bounce-in'
+  | 'rotate-in'
+  | 'blur-in';
+
+export interface TextAnimationConfig {
+  type: TextAnimationType;
+  duration: number; // seconds
+  delay: number; // seconds
+  easing: EasingFunction;
+  stagger?: number; // for letter-by-letter, word-by-word
+}
+
+// Advanced transition effects
+export type TransitionEffect =
+  | 'fade'
+  | 'dissolve'
+  | 'wipe-left'
+  | 'wipe-right'
+  | 'wipe-up'
+  | 'wipe-down'
+  | 'circle-wipe'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'slide-left'
+  | 'slide-right'
+  | 'rotate'
+  | 'blur'
+  | 'pixelate';
+
+export interface TransitionConfig {
+  effect: TransitionEffect;
+  duration: number; // seconds
+  easing: EasingFunction;
+}
+
+// API request/response types for video production
+export interface RenderVideoRequest {
+  projectId: string;
+  config: VideoRenderConfig;
+}
+
+export interface RenderVideoResponse {
+  jobId: string;
+  estimatedDuration: number; // seconds
+  error?: string;
+}
+
+export interface VideoJobStatusResponse {
+  job: VideoRenderJob;
+  error?: string;
+}
+
+export interface GenerateVoiceoverRequest {
+  text: string;
+  voice: string;
+  speed: number;
+  language: SupportedLanguage;
+}
+
+export interface GenerateVoiceoverResponse {
+  audioUrl: string;
+  duration: number; // seconds
+  error?: string;
+}
+
 // Store state type
 export interface StoreState {
   // State
@@ -422,6 +695,15 @@ export interface StoreState {
   isAnalyzing: boolean;
   storyAnalysis: StoryAnalysis | null;
   aiSuggestions: Map<string, AISuggestion[]>; // sceneId -> suggestions
+  
+  // Video Production state
+  currentRenderJob: VideoRenderJob | null;
+  isRendering: boolean;
+  renderProgress: number; // 0-100
+  audioSettings: AudioSettings;
+  selectedTemplate: IndustryTemplate | null;
+  selectedBrand: BrandIdentity | null;
+  videoConfig: VideoRenderConfig | null;
   
   // Actions
   createProject: (name: string) => void;
@@ -459,6 +741,16 @@ export interface StoreState {
   toggleGridGuides: () => void;
   toggleSnapToGrid: () => void;
   setGridSize: (size: number) => void;
+  
+  // Video Production actions
+  setVideoConfig: (config: VideoRenderConfig) => void;
+  setAudioSettings: (settings: AudioSettings) => void;
+  setTemplate: (template: IndustryTemplate) => void;
+  setBrand: (brand: BrandIdentity) => void;
+  startVideoRender: (config: VideoRenderConfig) => Promise<string>; // returns jobId
+  checkRenderStatus: (jobId: string) => Promise<VideoRenderJob>;
+  cancelRender: (jobId: string) => Promise<void>;
+  generateVoiceover: (text: string, voice: string, language: SupportedLanguage) => Promise<string>; // returns audioUrl
   
   saveToLocalStorage: () => void;
   loadFromLocalStorage: () => void;
