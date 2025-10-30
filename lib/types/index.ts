@@ -248,6 +248,157 @@ export interface StylePreset {
   defaultAnimation?: AnimationParams;
 }
 
+// PHASE 1: Voice-to-Script AI
+export type SupportedLanguage = 'en' | 'es' | 'fr' | 'de' | 'zh' | 'ja' | 'ko' | 'it' | 'pt';
+
+export interface VoiceInput {
+  audioBlob: Blob;
+  language: SupportedLanguage;
+  transcription: string;
+  confidence: number;
+  timestamp: number;
+}
+
+export interface VoiceCommand {
+  command: 'next_scene' | 'previous_scene' | 'add_scene' | 'delete_scene' | 'play' | 'pause';
+  timestamp: number;
+  executed: boolean;
+}
+
+export interface VoiceToScriptRequest {
+  audioData: string; // Base64 encoded audio
+  language: SupportedLanguage;
+}
+
+export interface VoiceToScriptResponse {
+  transcription: string;
+  confidence: number;
+  language: SupportedLanguage;
+  duration: number;
+  error?: string;
+}
+
+// PHASE 2: Smart Story Optimization
+export interface CharacterCheck {
+  character: string;
+  appearances: number[];
+  consistencyScore: number;
+  issues: string[];
+}
+
+export interface IndustryComparison {
+  averagePacing: number;
+  averageDuration: number;
+  idealSceneCount: { min: number; max: number };
+  genre: string;
+}
+
+export interface StoryAnalysis {
+  pacingScore: number; // 0-100
+  flowOptimization: string[];
+  characterConsistency: CharacterCheck[];
+  industryBenchmark: IndustryComparison;
+  suggestions: string[];
+  deadTimeDetection: { sceneId: string; duration: number; reason: string }[];
+}
+
+export interface AnalyzeStoryRequest {
+  script: string;
+  scenes: Scene[];
+  genre?: string;
+}
+
+export interface AnalyzeStoryResponse {
+  analysis: StoryAnalysis;
+  error?: string;
+}
+
+export interface OptimizeScenesRequest {
+  scenes: Scene[];
+  targetDuration?: number;
+}
+
+export interface OptimizeScenesResponse {
+  optimizedScenes: Scene[];
+  changes: {
+    sceneId: string;
+    type: 'merge' | 'split' | 'adjust_timing';
+    reason: string;
+    before: number;
+    after: number;
+  }[];
+  error?: string;
+}
+
+// PHASE 3: Intelligent Scene Transitions
+export interface TransitionSuggestion {
+  type: AnimationType;
+  duration: number;
+  reasoning: string;
+  musicSync?: boolean;
+  continuityScore: number;
+  moodAlignment: number;
+}
+
+export interface SmartTransitionsRequest {
+  scenes: Scene[];
+  musicBpm?: number;
+}
+
+export interface SmartTransitionsResponse {
+  suggestions: { sceneId: string; transition: TransitionSuggestion }[];
+  error?: string;
+}
+
+// PHASE 4: AI Suggestions Engine
+export type AISuggestionType = 'creative' | 'visual' | 'accessibility' | 'template' | 'character';
+
+export interface AISuggestion {
+  id: string;
+  type: AISuggestionType;
+  title: string;
+  description: string;
+  implementation: any;
+  confidence: number;
+  impact: 'low' | 'medium' | 'high';
+}
+
+export interface AISuggestionsRequest {
+  scene: Scene;
+  projectContext?: {
+    genre?: string;
+    targetAudience?: string;
+    purpose?: string;
+  };
+}
+
+export interface AISuggestionsResponse {
+  suggestions: AISuggestion[];
+  error?: string;
+}
+
+// PHASE 5: Multi-Language Support
+export interface TranslationRequest {
+  text: string;
+  sourceLanguage: SupportedLanguage;
+  targetLanguage: SupportedLanguage;
+  context?: 'script' | 'scene_title' | 'description' | 'voiceover';
+}
+
+export interface TranslationResponse {
+  translatedText: string;
+  confidence: number;
+  culturalAdaptations?: string[];
+  error?: string;
+}
+
+export interface CulturalAdaptation {
+  element: string;
+  originalValue: string;
+  suggestedValue: string;
+  reasoning: string;
+}
+
 // Store state type
 export interface StoreState {
   // State
@@ -263,6 +414,14 @@ export interface StoreState {
   showGridGuides: boolean;
   snapToGrid: boolean;
   gridSize: number;
+  
+  // Enhanced AI state
+  currentLanguage: SupportedLanguage;
+  isRecording: boolean;
+  isTranscribing: boolean;
+  isAnalyzing: boolean;
+  storyAnalysis: StoryAnalysis | null;
+  aiSuggestions: Map<string, AISuggestion[]>; // sceneId -> suggestions
   
   // Actions
   createProject: (name: string) => void;
@@ -287,6 +446,14 @@ export interface StoreState {
   batchUpdateIllustrations: (sceneId: string, illustrationIds: string[], updates: Partial<Illustration>) => void;
   
   selectScene: (sceneId: string | null) => void;
+  
+  // Enhanced AI actions
+  transcribeVoice: (audioBlob: Blob, language: SupportedLanguage) => Promise<string>;
+  analyzeStory: () => Promise<void>;
+  generateAISuggestions: (sceneId: string) => Promise<void>;
+  applySmartTransitions: () => Promise<void>;
+  translateProject: (targetLanguage: SupportedLanguage) => Promise<void>;
+  setLanguage: (language: SupportedLanguage) => void;
   
   // UI settings
   toggleGridGuides: () => void;

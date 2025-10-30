@@ -2,12 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
-import { Sparkles, Download } from 'lucide-react';
+import { Sparkles, Download, Bot, X } from 'lucide-react';
 import ScriptInput from '@/components/ScriptInput';
 import SceneTimeline from '@/components/SceneTimeline';
 import PreviewCanvas from '@/components/PreviewCanvas';
 import SceneEditor from '@/components/SceneEditor';
 import AutoSaveIndicator from '@/components/AutoSaveIndicator';
+import StoryOptimizationPanel from '@/components/StoryOptimizationPanel';
+import SmartTransitionsPanel from '@/components/SmartTransitionsPanel';
+import AISuggestionsPanel from '@/components/AISuggestionsPanel';
+import LanguageSelector from '@/components/LanguageSelector';
+
+type AITab = 'optimization' | 'transitions' | 'suggestions' | 'language';
 
 export default function Home() {
   const {
@@ -19,6 +25,8 @@ export default function Home() {
   } = useStore();
 
   const [isClient, setIsClient] = useState(false);
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [activeAITab, setActiveAITab] = useState<AITab>('optimization');
 
   useEffect(() => {
     setIsClient(true);
@@ -60,15 +68,24 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <AutoSaveIndicator />
               {currentProject && currentProject.scenes.length > 0 && (
-                <button
-                  className="flex items-center gap-2 px-4 py-2 bg-secondary text-white rounded-lg hover:bg-opacity-90 transition-all"
-                  onClick={() => {
-                    alert('Export feature coming soon!');
-                  }}
-                >
-                  <Download className="w-4 h-4" />
-                  Export
-                </button>
+                <>
+                  <button
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition-all"
+                    onClick={() => setShowAIPanel(!showAIPanel)}
+                  >
+                    <Bot className="w-4 h-4" />
+                    Enhanced AI
+                  </button>
+                  <button
+                    className="flex items-center gap-2 px-4 py-2 bg-secondary text-white rounded-lg hover:bg-opacity-90 transition-all"
+                    onClick={() => {
+                      alert('Export feature coming soon!');
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                    Export
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -84,7 +101,7 @@ export default function Home() {
                 Transform Your Script into a Visual Storyboard
               </h2>
               <p className="text-lg text-gray-600">
-                Paste your script below and let AI create a professional storyboard in seconds
+                Paste your script below or use voice input to create a professional storyboard in seconds
               </p>
             </div>
             <ScriptInput />
@@ -117,6 +134,76 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Enhanced AI Control Panel */}
+      {showAIPanel && (
+        <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl z-40 overflow-hidden flex flex-col border-l border-gray-200">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Bot className="w-6 h-6 text-purple-600" />
+              Enhanced AI Suite
+            </h2>
+            <button
+              onClick={() => setShowAIPanel(false)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* AI Tab Navigation */}
+          <div className="grid grid-cols-4 border-b border-gray-200">
+            <button
+              onClick={() => setActiveAITab('optimization')}
+              className={`px-2 py-3 text-xs font-medium transition-colors ${
+                activeAITab === 'optimization'
+                  ? 'bg-purple-50 text-purple-600 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Story
+            </button>
+            <button
+              onClick={() => setActiveAITab('transitions')}
+              className={`px-2 py-3 text-xs font-medium transition-colors ${
+                activeAITab === 'transitions'
+                  ? 'bg-purple-50 text-purple-600 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Transitions
+            </button>
+            <button
+              onClick={() => setActiveAITab('suggestions')}
+              className={`px-2 py-3 text-xs font-medium transition-colors ${
+                activeAITab === 'suggestions'
+                  ? 'bg-purple-50 text-purple-600 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Suggestions
+            </button>
+            <button
+              onClick={() => setActiveAITab('language')}
+              className={`px-2 py-3 text-xs font-medium transition-colors ${
+                activeAITab === 'language'
+                  ? 'bg-purple-50 text-purple-600 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Language
+            </button>
+          </div>
+
+          {/* AI Panel Content */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {activeAITab === 'optimization' && <StoryOptimizationPanel />}
+            {activeAITab === 'transitions' && <SmartTransitionsPanel />}
+            {activeAITab === 'suggestions' && <AISuggestionsPanel />}
+            {activeAITab === 'language' && <LanguageSelector />}
+          </div>
+        </div>
+      )}
 
       {/* Scene Editor Modal */}
       {selectedSceneId && <SceneEditor />}

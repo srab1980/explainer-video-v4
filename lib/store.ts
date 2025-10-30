@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { StoreState, Project, Scene, Illustration, IllustrationStyle } from './types';
+import type { StoreState, Project, Scene, Illustration, IllustrationStyle, SupportedLanguage, StoryAnalysis, AISuggestion } from './types';
 
 const STORAGE_KEY = 'storyvid-project';
 
@@ -16,6 +16,14 @@ export const useStore = create<StoreState>((set, get) => ({
   showGridGuides: false,
   snapToGrid: false,
   gridSize: 20,
+  
+  // Enhanced AI state
+  currentLanguage: 'en',
+  isRecording: false,
+  isTranscribing: false,
+  isAnalyzing: false,
+  storyAnalysis: null,
+  aiSuggestions: new Map(),
 
   // Project actions
   createProject: (name: string) => {
@@ -416,6 +424,233 @@ export const useStore = create<StoreState>((set, get) => ({
 
   selectScene: (sceneId: string | null) => {
     set({ selectedSceneId: sceneId, selectedIllustrationIds: [] });
+  },
+
+  // Enhanced AI actions
+  transcribeVoice: async (audioBlob: Blob, language: SupportedLanguage) => {
+    set({ isTranscribing: true });
+    try {
+      // Convert blob to base64
+      const reader = new FileReader();
+      const base64Data = await new Promise<string>((resolve) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(audioBlob);
+      });
+
+      const response = await fetch('/api/voice-to-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audioData: base64Data,
+          language,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Transcription failed');
+      }
+
+      const data = await response.json();
+      return data.transcription;
+    } catch (error) {
+      console.error('Transcription error:', error);
+      throw error;
+    } finally {
+      set({ isTranscribing: false });
+    }
+  },
+
+  analyzeStory: async () => {
+    const { currentProject } = get();
+    if (!currentProject || !currentProject.scenes.length) {
+      return;
+    }
+
+    set({ isAnalyzing: true });
+    try {
+      const response = await fetch('/api/analyze-story', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          script: currentProject.script,
+          scenes: currentProject.scenes,
+          genre: 'general',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Story analysis failed');
+      }
+
+      const data = await response.json();
+      set({ storyAnalysis: data.analysis });
+    } catch (error) {
+      console.error('Story analysis error:', error);
+      throw error;
+    } finally {
+      set({ isAnalyzing: false });
+    }
+  },
+
+  generateAISuggestions: async (sceneId: string) => {
+    const { currentProject, aiSuggestions } = get();
+    if (!currentProject) return;
+
+    const scene = currentProject.scenes.find(s => s.id === sceneId);
+    if (!scene) return;
+
+    try {
+      const response = await fetch('/api/ai-suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scene,
+          projectContext: {
+            genre: 'general',
+            targetAudience: 'general',
+            purpose: 'presentation',
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate suggestions');
+      }
+
+      const data = await response.json();
+      const newSuggestions = new Map(aiSuggestions);
+      newSuggestions.set(sceneId, data.suggestions);
+      set({ aiSuggestions: newSuggestions });
+    } catch (error) {
+      console.error('AI suggestions error:', error);
+      throw error;
+    }
+  },
+
+  applySmartTransitions: async () => {
+    const { currentProject } = get();
+    if (!currentProject || currentProject.scenes.length < 2) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/smart-transitions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenes: currentProject.scenes,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate transitions');
+      }
+
+      const data = await response.json();
+      
+      // Apply the suggested transitions
+      const updatedScenes = currentProject.scenes.map(scene => {
+        const suggestion = data.suggestions.find((s: any) => s.sceneId === scene.id);
+        if (suggestion?.transition) {
+          return {
+            ...scene,
+            animation: suggestion.transition.type,
+          };
+        }
+        return scene;
+      });
+
+      set({
+        currentProject: {
+          ...currentProject,
+          scenes: updatedScenes,
+          updatedAt: new Date(),
+        },
+      });
+      get().saveToLocalStorage();
+    } catch (error) {
+      console.error('Smart transitions error:', error);
+      throw error;
+    }
+  },
+
+  translateProject: async (targetLanguage: SupportedLanguage) => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+
+    try {
+      // Translate script
+      const scriptResponse = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: currentProject.script,
+          sourceLanguage: get().currentLanguage,
+          targetLanguage,
+          context: 'script',
+        }),
+      });
+
+      if (!scriptResponse.ok) {
+        throw new Error('Translation failed');
+      }
+
+      const scriptData = await scriptResponse.json();
+
+      // Translate each scene
+      const translatedScenes = await Promise.all(
+        currentProject.scenes.map(async (scene) => {
+          const titleResponse = await fetch('/api/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: scene.title,
+              sourceLanguage: get().currentLanguage,
+              targetLanguage,
+              context: 'scene_title',
+            }),
+          });
+
+          const descResponse = await fetch('/api/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: scene.description,
+              sourceLanguage: get().currentLanguage,
+              targetLanguage,
+              context: 'description',
+            }),
+          });
+
+          const titleData = await titleResponse.json();
+          const descData = await descResponse.json();
+
+          return {
+            ...scene,
+            title: titleData.translatedText || scene.title,
+            description: descData.translatedText || scene.description,
+          };
+        })
+      );
+
+      set({
+        currentProject: {
+          ...currentProject,
+          script: scriptData.translatedText || currentProject.script,
+          scenes: translatedScenes,
+          updatedAt: new Date(),
+        },
+        currentLanguage: targetLanguage,
+      });
+      get().saveToLocalStorage();
+    } catch (error) {
+      console.error('Translation error:', error);
+      throw error;
+    }
+  },
+
+  setLanguage: (language: SupportedLanguage) => {
+    set({ currentLanguage: language });
   },
 
   // UI settings

@@ -153,7 +153,7 @@ Respond with ONLY the JSON array, no other text.`;
               response_format: 'url',
             });
 
-            const imageUrl = imageResponse.data[0]?.url;
+            const imageUrl = imageResponse.data?.[0]?.url;
 
             if (imageUrl) {
               illustrations = [{

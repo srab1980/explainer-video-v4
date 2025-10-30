@@ -3,13 +3,16 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import type { IllustrationStyle } from '@/lib/types';
-import { Sparkles, AlertCircle, Wand2, Image } from 'lucide-react';
+import { Sparkles, AlertCircle, Wand2, Image, FileText, Mic } from 'lucide-react';
+import VoiceRecorder from './VoiceRecorder';
 
 const ILLUSTRATION_STYLES: Array<{ value: IllustrationStyle; label: string; description: string }> = [
   { value: 'modern-flat', label: 'Modern Flat', description: 'Clean, minimalist, geometric' },
   { value: 'hand-drawn', label: 'Hand-Drawn', description: 'Sketch-like, artistic' },
   { value: 'corporate', label: 'Corporate', description: 'Professional, polished' },
 ];
+
+type InputTab = 'text' | 'voice';
 
 export default function ScriptInput() {
   const { currentProject, updateScript, generateScenes, isGenerating } = useStore();
@@ -18,6 +21,7 @@ export default function ScriptInput() {
   const [useAIImages, setUseAIImages] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<IllustrationStyle>('modern-flat');
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [activeTab, setActiveTab] = useState<InputTab>('text');
 
   const handleGenerate = async () => {
     if (!localScript.trim()) {
@@ -43,26 +47,83 @@ export default function ScriptInput() {
     }
   };
 
+  const handleVoiceTranscription = (transcription: string) => {
+    setLocalScript(prev => prev ? `${prev}\n${transcription}` : transcription);
+    setError('');
+  };
+
   return (
     <div className="w-full">
       <div className="bg-white rounded-xl shadow-lg border border-border overflow-hidden">
+        {/* Tab Navigation */}
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('text')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 font-medium transition-colors ${
+              activeTab === 'text'
+                ? 'bg-purple-50 text-purple-600 border-b-2 border-purple-600'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <FileText className="w-5 h-5" />
+            Text Input
+          </button>
+          <button
+            onClick={() => setActiveTab('voice')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 font-medium transition-colors ${
+              activeTab === 'voice'
+                ? 'bg-purple-50 text-purple-600 border-b-2 border-purple-600'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <Mic className="w-5 h-5" />
+            Voice Input
+          </button>
+        </div>
+
         <div className="p-6">
-          <label className="block text-sm font-medium text-foreground mb-2">
-            Your Script
-          </label>
-          <textarea
-            className="w-full h-64 px-4 py-3 text-base border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-            placeholder="Paste your explainer video script here... 
+          {/* Text Input Tab */}
+          {activeTab === 'text' && (
+            <>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Your Script
+              </label>
+              <textarea
+                className="w-full h-64 px-4 py-3 text-base border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                placeholder="Paste your explainer video script here... 
 
 Example:
 Welcome to our revolutionary new app! Have you ever struggled with organizing your daily tasks? Our app makes it simple. Just tap, drag, and done! With smart AI suggestions, you'll never miss a deadline again. Try it free for 30 days. Your productivity journey starts now."
-            value={localScript}
-            onChange={(e) => {
-              setLocalScript(e.target.value);
-              setError('');
-            }}
-            disabled={isGenerating}
-          />
+                value={localScript}
+                onChange={(e) => {
+                  setLocalScript(e.target.value);
+                  setError('');
+                }}
+                disabled={isGenerating}
+              />
+            </>
+          )}
+
+          {/* Voice Input Tab */}
+          {activeTab === 'voice' && (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-4">
+                Record or Upload Audio
+              </label>
+              <VoiceRecorder onTranscription={handleVoiceTranscription} />
+              
+              {localScript && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Current Script
+                  </label>
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 max-h-48 overflow-y-auto">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{localScript}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           
           {error && (
             <div className="mt-3 flex items-start gap-2 text-red-600 text-sm">
