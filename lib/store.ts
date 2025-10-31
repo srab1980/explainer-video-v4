@@ -1,6 +1,40 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { StoreState, Project, Scene, Illustration, IllustrationStyle, SupportedLanguage, StoryAnalysis, AISuggestion, AudioSettings, VideoRenderConfig, VideoRenderJob, IndustryTemplate, BrandIdentity } from './types';
+import type { 
+  StoreState, 
+  Project, 
+  Scene, 
+  Illustration, 
+  IllustrationStyle, 
+  SupportedLanguage, 
+  StoryAnalysis, 
+  AISuggestion, 
+  AudioSettings, 
+  VideoRenderConfig, 
+  VideoRenderJob, 
+  IndustryTemplate, 
+  BrandIdentity,
+  InteractiveHotspot,
+  AnimatedCTA,
+  ABTest,
+  VideoVariant,
+  EngagementMetrics,
+  TeamMember,
+  Comment,
+  ApprovalRequest,
+  ApprovalStatus,
+  Version,
+  ProductionTimeline,
+  ProjectStatus,
+  PlatformConnection,
+  DistributionPlatform,
+  DistributionJob,
+  SEOMetadata,
+  MarketingCampaign,
+  LandingPage,
+  SocialPost,
+  AnalyticsDashboard,
+} from './types';
 
 const STORAGE_KEY = 'storyvid-project';
 
@@ -55,6 +89,31 @@ export const useStore = create<StoreState>((set, get) => ({
   selectedTemplate: null,
   selectedBrand: null,
   videoConfig: null,
+
+  // Interactive Elements state
+  hotspots: new Map(),
+  ctas: new Map(),
+  currentABTest: null,
+  engagementMetrics: new Map(),
+  
+  // Collaboration state
+  teamMembers: [],
+  comments: [],
+  approvalRequests: [],
+  versions: [],
+  productionTimeline: null,
+  collaborationSession: null,
+  currentUserId: null,
+  currentUser: null,
+  
+  // Distribution state
+  platformConnections: [],
+  distributionJobs: [],
+  seoMetadata: null,
+  marketingCampaigns: [],
+  landingPages: [],
+  socialPosts: [],
+  analyticsDashboard: null,
 
   // Project actions
   createProject: (name: string) => {
@@ -806,6 +865,674 @@ export const useStore = create<StoreState>((set, get) => ({
     } catch (error) {
       throw error;
     }
+  },
+
+  // Interactive Elements actions
+  addHotspot: (sceneId: string, hotspot) => {
+    const { hotspots } = get();
+    const sceneHotspots = hotspots.get(sceneId) || [];
+    const newHotspot: InteractiveHotspot = {
+      ...hotspot,
+      id: uuidv4(),
+      clicks: 0,
+      impressions: 0,
+    };
+    hotspots.set(sceneId, [...sceneHotspots, newHotspot]);
+    set({ hotspots: new Map(hotspots) });
+    get().saveToLocalStorage();
+  },
+
+  updateHotspot: (sceneId: string, hotspotId: string, updates) => {
+    const { hotspots } = get();
+    const sceneHotspots = hotspots.get(sceneId) || [];
+    const updatedHotspots = sceneHotspots.map(h =>
+      h.id === hotspotId ? { ...h, ...updates } : h
+    );
+    hotspots.set(sceneId, updatedHotspots);
+    set({ hotspots: new Map(hotspots) });
+    get().saveToLocalStorage();
+  },
+
+  deleteHotspot: (sceneId: string, hotspotId: string) => {
+    const { hotspots } = get();
+    const sceneHotspots = hotspots.get(sceneId) || [];
+    hotspots.set(sceneId, sceneHotspots.filter(h => h.id !== hotspotId));
+    set({ hotspots: new Map(hotspots) });
+    get().saveToLocalStorage();
+  },
+
+  trackHotspotClick: (sceneId: string, hotspotId: string) => {
+    const { hotspots } = get();
+    const sceneHotspots = hotspots.get(sceneId) || [];
+    const updatedHotspots = sceneHotspots.map(h =>
+      h.id === hotspotId ? { ...h, clicks: h.clicks + 1 } : h
+    );
+    hotspots.set(sceneId, updatedHotspots);
+    set({ hotspots: new Map(hotspots) });
+  },
+
+  addCTA: (sceneId: string, cta) => {
+    const { ctas } = get();
+    const sceneCTAs = ctas.get(sceneId) || [];
+    const newCTA: AnimatedCTA = {
+      ...cta,
+      id: uuidv4(),
+      views: 0,
+      clicks: 0,
+      conversionRate: 0,
+    };
+    ctas.set(sceneId, [...sceneCTAs, newCTA]);
+    set({ ctas: new Map(ctas) });
+    get().saveToLocalStorage();
+  },
+
+  updateCTA: (sceneId: string, ctaId: string, updates) => {
+    const { ctas } = get();
+    const sceneCTAs = ctas.get(sceneId) || [];
+    const updatedCTAs = sceneCTAs.map(c =>
+      c.id === ctaId ? { ...c, ...updates } : c
+    );
+    ctas.set(sceneId, updatedCTAs);
+    set({ ctas: new Map(ctas) });
+    get().saveToLocalStorage();
+  },
+
+  deleteCTA: (sceneId: string, ctaId: string) => {
+    const { ctas } = get();
+    const sceneCTAs = ctas.get(sceneId) || [];
+    ctas.set(sceneId, sceneCTAs.filter(c => c.id !== ctaId));
+    set({ ctas: new Map(ctas) });
+    get().saveToLocalStorage();
+  },
+
+  trackCTAClick: (sceneId: string, ctaId: string) => {
+    const { ctas } = get();
+    const sceneCTAs = ctas.get(sceneId) || [];
+    const updatedCTAs = sceneCTAs.map(c =>
+      c.id === ctaId ? { 
+        ...c, 
+        clicks: c.clicks + 1,
+        conversionRate: ((c.clicks + 1) / (c.views || 1)) * 100
+      } : c
+    );
+    ctas.set(sceneId, updatedCTAs);
+    set({ ctas: new Map(ctas) });
+  },
+
+  createABTest: (test) => {
+    const newTest: ABTest = {
+      ...test,
+      id: uuidv4(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    set({ currentABTest: newTest });
+    get().saveToLocalStorage();
+  },
+
+  updateABTest: (testId: string, updates) => {
+    const { currentABTest } = get();
+    if (currentABTest && currentABTest.id === testId) {
+      set({
+        currentABTest: {
+          ...currentABTest,
+          ...updates,
+          updatedAt: new Date(),
+        },
+      });
+      get().saveToLocalStorage();
+    }
+  },
+
+  addTestVariant: (testId: string, variant) => {
+    const { currentABTest } = get();
+    if (currentABTest && currentABTest.id === testId) {
+      const newVariant: VideoVariant = {
+        ...variant,
+        id: uuidv4(),
+        metrics: {
+          views: 0,
+          completionRate: 0,
+          avgWatchTime: 0,
+          clickThroughRate: 0,
+          conversions: 0,
+          engagement: 0,
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      set({
+        currentABTest: {
+          ...currentABTest,
+          testVariants: [...currentABTest.testVariants, newVariant],
+          updatedAt: new Date(),
+        },
+      });
+      get().saveToLocalStorage();
+    }
+  },
+
+  updateEngagementMetrics: (sceneId: string, metrics) => {
+    const { engagementMetrics } = get();
+    const currentMetrics = engagementMetrics.get(sceneId) || {
+      sceneId,
+      views: 0,
+      uniqueViews: 0,
+      avgWatchTime: 0,
+      completionRate: 0,
+      dropOffRate: 0,
+      rewatchRate: 0,
+      hotspotsClicked: {},
+      ctaClicks: {},
+      pausePoints: [],
+      skipPoints: [],
+      clickHeatmap: [],
+      attentionHeatmap: [],
+      lastUpdated: new Date(),
+    };
+    engagementMetrics.set(sceneId, {
+      ...currentMetrics,
+      ...metrics,
+      lastUpdated: new Date(),
+    });
+    set({ engagementMetrics: new Map(engagementMetrics) });
+  },
+
+  // Collaboration actions
+  inviteTeamMember: async (member) => {
+    const newMember: TeamMember = {
+      ...member,
+      id: uuidv4(),
+      status: 'invited',
+      joinedAt: new Date(),
+    };
+    const { teamMembers } = get();
+    set({ teamMembers: [...teamMembers, newMember] });
+    get().saveToLocalStorage();
+  },
+
+  updateTeamMember: (memberId: string, updates) => {
+    const { teamMembers } = get();
+    set({
+      teamMembers: teamMembers.map(m =>
+        m.id === memberId ? { ...m, ...updates } : m
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  removeTeamMember: (memberId: string) => {
+    const { teamMembers } = get();
+    set({ teamMembers: teamMembers.filter(m => m.id !== memberId) });
+    get().saveToLocalStorage();
+  },
+
+  setCurrentUser: (user) => {
+    set({ currentUser: user, currentUserId: user.id });
+  },
+
+  addComment: (comment) => {
+    const newComment: Comment = {
+      ...comment,
+      id: uuidv4(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const { comments } = get();
+    set({ comments: [...comments, newComment] });
+    get().saveToLocalStorage();
+  },
+
+  updateComment: (commentId: string, updates) => {
+    const { comments } = get();
+    set({
+      comments: comments.map(c =>
+        c.id === commentId ? { ...c, ...updates, updatedAt: new Date() } : c
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  deleteComment: (commentId: string) => {
+    const { comments } = get();
+    set({ comments: comments.filter(c => c.id !== commentId) });
+    get().saveToLocalStorage();
+  },
+
+  resolveComment: (commentId: string, userId: string) => {
+    const { comments } = get();
+    set({
+      comments: comments.map(c =>
+        c.id === commentId
+          ? {
+              ...c,
+              status: 'resolved' as const,
+              resolvedBy: userId,
+              resolvedAt: new Date(),
+              updatedAt: new Date(),
+            }
+          : c
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  replyToComment: (parentId: string, reply) => {
+    const newReply: Comment = {
+      ...reply,
+      id: uuidv4(),
+      parentId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const { comments } = get();
+    set({ comments: [...comments, newReply] });
+    get().saveToLocalStorage();
+  },
+
+  createApprovalRequest: (request) => {
+    const newRequest: ApprovalRequest = {
+      ...request,
+      id: uuidv4(),
+      status: 'pending',
+      approvals: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const { approvalRequests } = get();
+    set({ approvalRequests: [...approvalRequests, newRequest] });
+    get().saveToLocalStorage();
+  },
+
+  respondToApproval: (requestId: string, userId: string, response, feedback) => {
+    const { approvalRequests, teamMembers } = get();
+    const user = teamMembers.find(m => m.id === userId);
+    if (!user) return;
+
+    set({
+      approvalRequests: approvalRequests.map(r =>
+        r.id === requestId
+          ? {
+              ...r,
+              approvals: [
+                ...r.approvals,
+                {
+                  userId,
+                  userName: user.name,
+                  status: response,
+                  feedback,
+                  timestamp: new Date(),
+                },
+              ],
+              status: response,
+              updatedAt: new Date(),
+            }
+          : r
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  createVersion: (version) => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+
+    const newVersion: Version = {
+      ...version,
+      id: uuidv4(),
+      snapshot: currentProject,
+      createdAt: new Date(),
+    };
+    const { versions } = get();
+    set({ versions: [...versions, newVersion] });
+    get().saveToLocalStorage();
+  },
+
+  restoreVersion: (versionId: string) => {
+    const { versions } = get();
+    const version = versions.find(v => v.id === versionId);
+    if (version) {
+      set({ currentProject: version.snapshot });
+      get().saveToLocalStorage();
+    }
+  },
+
+  updateProjectStatus: (status) => {
+    const { productionTimeline } = get();
+    if (productionTimeline) {
+      set({
+        productionTimeline: {
+          ...productionTimeline,
+          status,
+        },
+      });
+      get().saveToLocalStorage();
+    }
+  },
+
+  updateProductionTimeline: (updates) => {
+    const { productionTimeline } = get();
+    if (productionTimeline) {
+      set({
+        productionTimeline: {
+          ...productionTimeline,
+          ...updates,
+        },
+      });
+      get().saveToLocalStorage();
+    }
+  },
+
+  addTask: (task) => {
+    const { productionTimeline } = get();
+    if (!productionTimeline) return;
+
+    const newTask = {
+      ...task,
+      id: uuidv4(),
+      createdAt: new Date(),
+    };
+    set({
+      productionTimeline: {
+        ...productionTimeline,
+        tasks: [...productionTimeline.tasks, newTask],
+      },
+    });
+    get().saveToLocalStorage();
+  },
+
+  updateTask: (taskId: string, updates) => {
+    const { productionTimeline } = get();
+    if (!productionTimeline) return;
+
+    set({
+      productionTimeline: {
+        ...productionTimeline,
+        tasks: productionTimeline.tasks.map(t =>
+          t.id === taskId ? { ...t, ...updates } : t
+        ),
+      },
+    });
+    get().saveToLocalStorage();
+  },
+
+  // Distribution actions
+  connectPlatform: async (platform) => {
+    const newConnection: PlatformConnection = {
+      ...platform,
+      id: uuidv4(),
+      connectedAt: new Date(),
+    };
+    const { platformConnections } = get();
+    set({ platformConnections: [...platformConnections, newConnection] });
+    get().saveToLocalStorage();
+  },
+
+  disconnectPlatform: (platformId: string) => {
+    const { platformConnections } = get();
+    set({
+      platformConnections: platformConnections.filter(p => p.id !== platformId),
+    });
+    get().saveToLocalStorage();
+  },
+
+  distributeVideo: async (platforms, metadata) => {
+    const jobId = uuidv4();
+    const { currentProject } = get();
+    if (!currentProject) throw new Error('No project selected');
+
+    const distributionJob: DistributionJob = {
+      id: jobId,
+      projectId: currentProject.id,
+      videoUrl: '', // Will be set after render
+      platforms: platforms.map(p => ({
+        platform: p,
+        status: 'pending',
+        progress: 0,
+      })),
+      overallStatus: 'pending',
+      createdAt: new Date(),
+    };
+
+    const { distributionJobs } = get();
+    set({ distributionJobs: [...distributionJobs, distributionJob] });
+
+    // Update SEO metadata
+    if (metadata) {
+      get().updateSEOMetadata(metadata);
+    }
+
+    return jobId;
+  },
+
+  checkDistributionStatus: async (jobId: string) => {
+    const { distributionJobs } = get();
+    const job = distributionJobs.find(j => j.id === jobId);
+    if (!job) throw new Error('Job not found');
+    return job;
+  },
+
+  cancelDistribution: (jobId: string) => {
+    const { distributionJobs } = get();
+    set({
+      distributionJobs: distributionJobs.filter(j => j.id !== jobId),
+    });
+  },
+
+  updateSEOMetadata: (metadata) => {
+    const { seoMetadata, currentProject } = get();
+    if (!currentProject) return;
+
+    const updated: SEOMetadata = {
+      projectId: currentProject.id,
+      title: metadata.title || seoMetadata?.title || currentProject.name,
+      description: metadata.description || seoMetadata?.description || '',
+      tags: metadata.tags || seoMetadata?.tags || [],
+      thumbnails: metadata.thumbnails || seoMetadata?.thumbnails || [],
+      captions: metadata.captions || seoMetadata?.captions || [],
+      keywords: metadata.keywords || seoMetadata?.keywords || { primary: [], secondary: [] },
+      lastUpdated: new Date(),
+    };
+
+    set({ seoMetadata: updated });
+    get().saveToLocalStorage();
+  },
+
+  generateThumbnails: async (count: number) => {
+    // Mock implementation - would call API to generate thumbnails
+    const thumbnails: string[] = [];
+    for (let i = 0; i < count; i++) {
+      thumbnails.push(`/api/thumbnails/generated-${uuidv4()}.jpg`);
+    }
+    return thumbnails;
+  },
+
+  generateCaptions: async (language) => {
+    // Mock implementation - would call Whisper API
+    return `/api/captions/${language}-${uuidv4()}.srt`;
+  },
+
+  createMarketingCampaign: (campaign) => {
+    const newCampaign: MarketingCampaign = {
+      ...campaign,
+      id: uuidv4(),
+      createdAt: new Date(),
+    };
+    const { marketingCampaigns } = get();
+    set({ marketingCampaigns: [...marketingCampaigns, newCampaign] });
+    get().saveToLocalStorage();
+  },
+
+  updateMarketingCampaign: (campaignId: string, updates) => {
+    const { marketingCampaigns } = get();
+    set({
+      marketingCampaigns: marketingCampaigns.map(c =>
+        c.id === campaignId ? { ...c, ...updates } : c
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  launchCampaign: async (campaignId: string) => {
+    const { marketingCampaigns } = get();
+    set({
+      marketingCampaigns: marketingCampaigns.map(c =>
+        c.id === campaignId
+          ? { ...c, status: 'active', launchedAt: new Date() }
+          : c
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  createLandingPage: (page) => {
+    const newPage: LandingPage = {
+      ...page,
+      id: uuidv4(),
+      analytics: {
+        views: 0,
+        uniqueVisitors: 0,
+        formSubmissions: 0,
+        conversionRate: 0,
+        avgTimeOnPage: 0,
+      },
+      isPublished: false,
+      createdAt: new Date(),
+    };
+    const { landingPages } = get();
+    set({ landingPages: [...landingPages, newPage] });
+    get().saveToLocalStorage();
+  },
+
+  updateLandingPage: (pageId: string, updates) => {
+    const { landingPages } = get();
+    set({
+      landingPages: landingPages.map(p =>
+        p.id === pageId ? { ...p, ...updates } : p
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  publishLandingPage: async (pageId: string) => {
+    const url = `https://storyvid.page/${pageId}`;
+    const { landingPages } = get();
+    set({
+      landingPages: landingPages.map(p =>
+        p.id === pageId
+          ? {
+              ...p,
+              isPublished: true,
+              url,
+              publishedAt: new Date(),
+            }
+          : p
+      ),
+    });
+    get().saveToLocalStorage();
+    return url;
+  },
+
+  scheduleSocialPost: (post) => {
+    const newPost: SocialPost = {
+      id: uuidv4(),
+      projectId: post.projectId,
+      videoUrl: post.videoUrl,
+      platform: post.platform,
+      caption: post.caption,
+      hashtags: post.hashtags,
+      status: post.status,
+      createdAt: new Date(),
+      ...post,
+    };
+    const { socialPosts } = get();
+    set({ socialPosts: [...socialPosts, newPost] });
+    get().saveToLocalStorage();
+  },
+
+  updateSocialPost: (postId: string, updates) => {
+    const { socialPosts } = get();
+    set({
+      socialPosts: socialPosts.map(p =>
+        p.id === postId ? { ...p, ...updates } : p
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  publishSocialPost: async (postId: string) => {
+    const { socialPosts } = get();
+    set({
+      socialPosts: socialPosts.map(p =>
+        p.id === postId
+          ? {
+              ...p,
+              status: 'published',
+              publishedAt: new Date(),
+            }
+          : p
+      ),
+    });
+    get().saveToLocalStorage();
+  },
+
+  fetchAnalytics: async () => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+
+    // Mock analytics data
+    const analytics: AnalyticsDashboard = {
+      projectId: currentProject.id,
+      overview: {
+        totalViews: 1250,
+        uniqueViewers: 980,
+        avgWatchTime: 145,
+        completionRate: 72.5,
+        engagementRate: 68.3,
+      },
+      platformMetrics: [
+        {
+          platform: 'youtube',
+          views: 650,
+          engagement: 425,
+          clicks: 89,
+          conversions: 23,
+        },
+        {
+          platform: 'linkedin',
+          views: 380,
+          engagement: 290,
+          clicks: 67,
+          conversions: 18,
+        },
+        {
+          platform: 'vimeo',
+          views: 220,
+          engagement: 165,
+          clicks: 34,
+          conversions: 8,
+        },
+      ],
+      geography: [
+        { country: 'United States', views: 520, percentage: 41.6 },
+        { country: 'United Kingdom', views: 215, percentage: 17.2 },
+        { country: 'Canada', views: 185, percentage: 14.8 },
+      ],
+      devices: [
+        { type: 'desktop', views: 725, percentage: 58 },
+        { type: 'mobile', views: 425, percentage: 34 },
+        { type: 'tablet', views: 100, percentage: 8 },
+      ],
+      timeSeriesData: [],
+      trafficSources: [
+        { source: 'Direct', views: 450, percentage: 36 },
+        { source: 'Social Media', views: 380, percentage: 30.4 },
+        { source: 'Email', views: 250, percentage: 20 },
+      ],
+      lastUpdated: new Date(),
+    };
+
+    set({ analyticsDashboard: analytics });
   },
 
   // Persistence

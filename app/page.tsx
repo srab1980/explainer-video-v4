@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
-import { Sparkles, Download, Bot, X } from 'lucide-react';
+import { Sparkles, Download, Bot, X, MousePointer, Users, BarChart3 } from 'lucide-react';
 import ScriptInput from '@/components/ScriptInput';
 import SceneTimeline from '@/components/SceneTimeline';
 import PreviewCanvas from '@/components/PreviewCanvas';
@@ -16,9 +16,17 @@ import VideoExportPanel from '@/components/VideoExportPanel';
 import AudioProductionPanel from '@/components/AudioProductionPanel';
 import TemplateSelector from '@/components/TemplateSelector';
 import BrandManager from '@/components/BrandManager';
+import InteractiveElementsEditor from '@/components/InteractiveElementsEditor';
+import ABTestingDashboard from '@/components/ABTestingDashboard';
+import CollaborationPanel from '@/components/CollaborationPanel';
+import DistributionManager from '@/components/DistributionManager';
+import AnalyticsDashboard from '@/components/AnalyticsDashboard';
 
 type AITab = 'optimization' | 'transitions' | 'suggestions' | 'language';
 type VideoTab = 'export' | 'audio' | 'templates' | 'brand';
+type InteractiveTab = 'elements' | 'abtesting';
+type CollabTab = 'team' | 'comments' | 'approvals';
+type DistributionTab = 'publish' | 'analytics';
 
 export default function Home() {
   const {
@@ -34,6 +42,11 @@ export default function Home() {
   const [activeAITab, setActiveAITab] = useState<AITab>('optimization');
   const [showVideoPanel, setShowVideoPanel] = useState(false);
   const [activeVideoTab, setActiveVideoTab] = useState<VideoTab>('export');
+  const [showInteractivePanel, setShowInteractivePanel] = useState(false);
+  const [activeInteractiveTab, setActiveInteractiveTab] = useState<InteractiveTab>('elements');
+  const [showCollabPanel, setShowCollabPanel] = useState(false);
+  const [showDistributionPanel, setShowDistributionPanel] = useState(false);
+  const [activeDistributionTab, setActiveDistributionTab] = useState<DistributionTab>('publish');
 
   useEffect(() => {
     setIsClient(true);
@@ -81,6 +94,9 @@ export default function Home() {
                     onClick={() => {
                       setShowAIPanel(!showAIPanel);
                       setShowVideoPanel(false);
+                      setShowInteractivePanel(false);
+                      setShowCollabPanel(false);
+                      setShowDistributionPanel(false);
                     }}
                   >
                     <Bot className="w-4 h-4" />
@@ -91,10 +107,52 @@ export default function Home() {
                     onClick={() => {
                       setShowVideoPanel(!showVideoPanel);
                       setShowAIPanel(false);
+                      setShowInteractivePanel(false);
+                      setShowCollabPanel(false);
+                      setShowDistributionPanel(false);
                     }}
                   >
                     <Download className="w-4 h-4" />
                     Video Production
+                  </button>
+                  <button
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-600 to-pink-600 text-white rounded-lg hover:opacity-90 transition-all"
+                    onClick={() => {
+                      setShowInteractivePanel(!showInteractivePanel);
+                      setShowAIPanel(false);
+                      setShowVideoPanel(false);
+                      setShowCollabPanel(false);
+                      setShowDistributionPanel(false);
+                    }}
+                  >
+                    <MousePointer className="w-4 h-4" />
+                    Interactive
+                  </button>
+                  <button
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg hover:opacity-90 transition-all"
+                    onClick={() => {
+                      setShowCollabPanel(!showCollabPanel);
+                      setShowAIPanel(false);
+                      setShowVideoPanel(false);
+                      setShowInteractivePanel(false);
+                      setShowDistributionPanel(false);
+                    }}
+                  >
+                    <Users className="w-4 h-4" />
+                    Collaboration
+                  </button>
+                  <button
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:opacity-90 transition-all"
+                    onClick={() => {
+                      setShowDistributionPanel(!showDistributionPanel);
+                      setShowAIPanel(false);
+                      setShowVideoPanel(false);
+                      setShowInteractivePanel(false);
+                      setShowCollabPanel(false);
+                    }}
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    Distribution
                   </button>
                 </>
               )}
@@ -282,6 +340,125 @@ export default function Home() {
             {activeAITab === 'transitions' && <SmartTransitionsPanel />}
             {activeAITab === 'suggestions' && <AISuggestionsPanel />}
             {activeAITab === 'language' && <LanguageSelector />}
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Elements Panel */}
+      {showInteractivePanel && (
+        <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl z-40 overflow-hidden flex flex-col border-l border-gray-200">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-pink-50">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <MousePointer className="w-6 h-6 text-orange-600" />
+              Interactive Elements
+            </h2>
+            <button
+              onClick={() => setShowInteractivePanel(false)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Interactive Tab Navigation */}
+          <div className="grid grid-cols-2 border-b border-gray-200">
+            <button
+              onClick={() => setActiveInteractiveTab('elements')}
+              className={`px-2 py-3 text-xs font-medium transition-colors ${
+                activeInteractiveTab === 'elements'
+                  ? 'bg-orange-50 text-orange-600 border-b-2 border-orange-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Hotspots & CTAs
+            </button>
+            <button
+              onClick={() => setActiveInteractiveTab('abtesting')}
+              className={`px-2 py-3 text-xs font-medium transition-colors ${
+                activeInteractiveTab === 'abtesting'
+                  ? 'bg-orange-50 text-orange-600 border-b-2 border-orange-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              A/B Testing
+            </button>
+          </div>
+
+          {/* Interactive Panel Content */}
+          <div className="flex-1 overflow-hidden">
+            {activeInteractiveTab === 'elements' && <InteractiveElementsEditor />}
+            {activeInteractiveTab === 'abtesting' && <ABTestingDashboard />}
+          </div>
+        </div>
+      )}
+
+      {/* Collaboration Panel */}
+      {showCollabPanel && (
+        <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl z-40 overflow-hidden flex flex-col border-l border-gray-200">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-teal-50 to-cyan-50">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Users className="w-6 h-6 text-teal-600" />
+              Collaboration
+            </h2>
+            <button
+              onClick={() => setShowCollabPanel(false)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Collaboration Panel Content */}
+          <div className="flex-1 overflow-hidden">
+            <CollaborationPanel />
+          </div>
+        </div>
+      )}
+
+      {/* Distribution & Analytics Panel */}
+      {showDistributionPanel && (
+        <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl z-40 overflow-hidden flex flex-col border-l border-gray-200">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <BarChart3 className="w-6 h-6 text-indigo-600" />
+              Distribution & Analytics
+            </h2>
+            <button
+              onClick={() => setShowDistributionPanel(false)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Distribution Tab Navigation */}
+          <div className="grid grid-cols-2 border-b border-gray-200">
+            <button
+              onClick={() => setActiveDistributionTab('publish')}
+              className={`px-2 py-3 text-xs font-medium transition-colors ${
+                activeDistributionTab === 'publish'
+                  ? 'bg-indigo-50 text-indigo-600 border-b-2 border-indigo-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Publishing
+            </button>
+            <button
+              onClick={() => setActiveDistributionTab('analytics')}
+              className={`px-2 py-3 text-xs font-medium transition-colors ${
+                activeDistributionTab === 'analytics'
+                  ? 'bg-indigo-50 text-indigo-600 border-b-2 border-indigo-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Analytics
+            </button>
+          </div>
+
+          {/* Distribution Panel Content */}
+          <div className="flex-1 overflow-hidden">
+            {activeDistributionTab === 'publish' && <DistributionManager />}
+            {activeDistributionTab === 'analytics' && <AnalyticsDashboard />}
           </div>
         </div>
       )}

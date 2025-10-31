@@ -672,6 +672,718 @@ export interface GenerateVoiceoverResponse {
   error?: string;
 }
 
+// ========================================
+// PHASE 4: INTERACTIVE & ENGAGING ELEMENTS
+// ========================================
+
+// Interactive hotspot types
+export type HotspotType = 
+  | 'button'
+  | 'link'
+  | 'info'
+  | 'product'
+  | 'cta'
+  | 'social'
+  | 'custom';
+
+export type HotspotAction = 
+  | 'open-url'
+  | 'show-info'
+  | 'pause-video'
+  | 'skip-to-scene'
+  | 'show-form'
+  | 'track-event';
+
+export interface InteractiveHotspot {
+  id: string;
+  sceneId: string;
+  type: HotspotType;
+  
+  // Position and appearance
+  position: { x: number; y: number }; // percentage 0-100
+  size: { width: number; height: number }; // pixels
+  shape: 'rectangle' | 'circle' | 'custom';
+  
+  // Content
+  label: string;
+  icon?: string;
+  description?: string;
+  
+  // Styling
+  backgroundColor: string;
+  textColor: string;
+  borderColor?: string;
+  borderWidth?: number;
+  opacity: number; // 0-100
+  
+  // Animation
+  hoverEffect?: {
+    scale?: number;
+    opacity?: number;
+    backgroundColor?: string;
+  };
+  pulseAnimation?: boolean;
+  
+  // Action
+  action: HotspotAction;
+  actionData: {
+    url?: string;
+    targetSceneId?: string;
+    message?: string;
+    eventName?: string;
+    formId?: string;
+  };
+  
+  // Timing
+  appearTime: number; // seconds from scene start
+  disappearTime?: number; // seconds from scene start
+  
+  // Tracking
+  clicks: number;
+  impressions: number;
+}
+
+// Call-to-action types
+export type CTAStyle = 
+  | 'button'
+  | 'banner'
+  | 'overlay'
+  | 'floating'
+  | 'end-screen';
+
+export interface AnimatedCTA {
+  id: string;
+  sceneId: string;
+  style: CTAStyle;
+  
+  // Content
+  headline: string;
+  subheadline?: string;
+  buttonText: string;
+  
+  // Styling
+  theme: {
+    backgroundColor: string;
+    textColor: string;
+    buttonColor: string;
+    buttonTextColor: string;
+  };
+  
+  // Animation
+  entranceAnimation: AnimationType;
+  exitAnimation: AnimationType;
+  timing: {
+    appearTime: number; // seconds from scene start
+    duration: number; // how long it stays visible
+  };
+  
+  // Action
+  action: {
+    type: 'url' | 'form' | 'social' | 'download';
+    url?: string;
+    formId?: string;
+    platform?: string;
+  };
+  
+  // Tracking
+  views: number;
+  clicks: number;
+  conversionRate: number;
+}
+
+// A/B Testing types
+export interface VideoVariant {
+  id: string;
+  projectId: string;
+  name: string;
+  description: string;
+  
+  // Variations
+  changes: {
+    sceneId: string;
+    changedElements: {
+      type: 'text' | 'animation' | 'hotspot' | 'cta' | 'layout' | 'color';
+      before: any;
+      after: any;
+    }[];
+  }[];
+  
+  // Status
+  status: 'draft' | 'active' | 'paused' | 'completed';
+  trafficAllocation: number; // 0-100 percentage
+  
+  // Metrics
+  metrics: {
+    views: number;
+    completionRate: number;
+    avgWatchTime: number;
+    clickThroughRate: number;
+    conversions: number;
+    engagement: number;
+  };
+  
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ABTest {
+  id: string;
+  projectId: string;
+  name: string;
+  description: string;
+  
+  // Variants
+  controlVariant: VideoVariant;
+  testVariants: VideoVariant[];
+  
+  // Configuration
+  status: 'draft' | 'running' | 'paused' | 'completed';
+  startDate?: Date;
+  endDate?: Date;
+  goal: {
+    type: 'views' | 'completion' | 'clicks' | 'conversions' | 'engagement';
+    target: number;
+  };
+  
+  // Results
+  winner?: string; // variant ID
+  confidenceLevel?: number; // 0-100
+  
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Engagement analytics
+export interface EngagementMetrics {
+  sceneId: string;
+  
+  // Viewing metrics
+  views: number;
+  uniqueViews: number;
+  avgWatchTime: number;
+  completionRate: number;
+  dropOffRate: number;
+  rewatchRate: number;
+  
+  // Interaction metrics
+  hotspotsClicked: { [hotspotId: string]: number };
+  ctaClicks: { [ctaId: string]: number };
+  pausePoints: { time: number; count: number }[];
+  skipPoints: { time: number; count: number }[];
+  
+  // Heatmap data
+  clickHeatmap: { x: number; y: number; count: number }[];
+  attentionHeatmap: { x: number; y: number; duration: number }[];
+  
+  lastUpdated: Date;
+}
+
+// ========================================
+// PHASE 5: COLLABORATIVE PRODUCTION WORKFLOW
+// ========================================
+
+// User roles and permissions
+export type UserRole = 'owner' | 'admin' | 'editor' | 'reviewer' | 'viewer';
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  role: UserRole;
+  
+  // Permissions
+  permissions: {
+    canEdit: boolean;
+    canComment: boolean;
+    canApprove: boolean;
+    canPublish: boolean;
+    canInvite: boolean;
+    canManageTeam: boolean;
+  };
+  
+  // Status
+  status: 'active' | 'invited' | 'inactive';
+  lastActive?: Date;
+  joinedAt: Date;
+}
+
+// Comments and feedback
+export type CommentType = 'general' | 'suggestion' | 'issue' | 'approval';
+export type CommentStatus = 'open' | 'resolved' | 'archived';
+
+export interface Comment {
+  id: string;
+  projectId: string;
+  sceneId: string;
+  
+  // Author
+  authorId: string;
+  authorName: string;
+  authorAvatar?: string;
+  
+  // Content
+  type: CommentType;
+  content: string;
+  attachments?: { url: string; type: string; name: string }[];
+  
+  // Position (optional - for specific element comments)
+  position?: { x: number; y: number };
+  elementId?: string; // illustration or hotspot ID
+  timestamp?: number; // time in video if applicable
+  
+  // Status
+  status: CommentStatus;
+  resolvedBy?: string;
+  resolvedAt?: Date;
+  
+  // Threading
+  parentId?: string;
+  replies?: Comment[];
+  
+  // Metadata
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Approval workflow
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'changes-requested';
+
+export interface ApprovalRequest {
+  id: string;
+  projectId: string;
+  sceneId?: string; // specific scene or entire project
+  
+  // Request details
+  requestedBy: string;
+  requestedFrom: string[];
+  message: string;
+  
+  // Status
+  status: ApprovalStatus;
+  approvals: {
+    userId: string;
+    userName: string;
+    status: ApprovalStatus;
+    feedback?: string;
+    timestamp: Date;
+  }[];
+  
+  // Deadline
+  dueDate?: Date;
+  
+  // Metadata
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Version control and history
+export interface Version {
+  id: string;
+  projectId: string;
+  versionNumber: string; // e.g., "1.0", "1.1", "2.0"
+  name: string;
+  description: string;
+  
+  // Snapshot
+  snapshot: Project; // Full project state
+  
+  // Changes
+  changes: {
+    type: 'scene' | 'illustration' | 'settings' | 'interactive' | 'other';
+    action: 'added' | 'updated' | 'deleted';
+    description: string;
+    elementId?: string;
+  }[];
+  
+  // Author
+  createdBy: string;
+  createdByName: string;
+  
+  // Status
+  isPublished: boolean;
+  tags?: string[];
+  
+  createdAt: Date;
+}
+
+// Project status and workflow
+export type ProjectStatus = 
+  | 'draft'
+  | 'in-review'
+  | 'changes-requested'
+  | 'approved'
+  | 'in-production'
+  | 'published'
+  | 'archived';
+
+export interface ProductionTimeline {
+  projectId: string;
+  status: ProjectStatus;
+  
+  // Milestones
+  milestones: {
+    id: string;
+    name: string;
+    description: string;
+    dueDate: Date;
+    status: 'not-started' | 'in-progress' | 'completed' | 'overdue';
+    assignedTo?: string[];
+    completedAt?: Date;
+  }[];
+  
+  // Tasks
+  tasks: {
+    id: string;
+    title: string;
+    description: string;
+    assignedTo: string;
+    assignedToName: string;
+    dueDate?: Date;
+    priority: 'low' | 'medium' | 'high' | 'urgent';
+    status: 'todo' | 'in-progress' | 'review' | 'done';
+    relatedSceneId?: string;
+    tags?: string[];
+    createdAt: Date;
+    completedAt?: Date;
+  }[];
+  
+  // Activity log
+  activities: {
+    id: string;
+    type: 'edit' | 'comment' | 'approval' | 'status-change' | 'publish';
+    description: string;
+    userId: string;
+    userName: string;
+    timestamp: Date;
+  }[];
+}
+
+// Real-time collaboration
+export interface CollaborationSession {
+  projectId: string;
+  activeUsers: {
+    userId: string;
+    userName: string;
+    avatar?: string;
+    color: string; // cursor color
+    currentSceneId?: string;
+    lastActivity: Date;
+  }[];
+  
+  // Locks
+  locks: {
+    sceneId: string;
+    userId: string;
+    userName: string;
+    lockedAt: Date;
+  }[];
+}
+
+// ========================================
+// PHASE 6: DISTRIBUTION & MARKETING INTEGRATION
+// ========================================
+
+// Distribution platforms
+export type DistributionPlatform = 
+  | 'youtube'
+  | 'vimeo'
+  | 'wistia'
+  | 'facebook'
+  | 'instagram'
+  | 'linkedin'
+  | 'twitter'
+  | 'tiktok'
+  | 'custom';
+
+export interface PlatformConnection {
+  id: string;
+  platform: DistributionPlatform;
+  accountName: string;
+  accountId: string;
+  
+  // Auth
+  isConnected: boolean;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: Date;
+  
+  // Settings
+  defaultSettings: {
+    visibility: 'public' | 'private' | 'unlisted';
+    category?: string;
+    tags?: string[];
+    thumbnail?: string;
+  };
+  
+  connectedAt: Date;
+  lastUsed?: Date;
+}
+
+export interface DistributionJob {
+  id: string;
+  projectId: string;
+  videoUrl: string;
+  
+  // Platforms
+  platforms: {
+    platform: DistributionPlatform;
+    status: 'pending' | 'uploading' | 'processing' | 'published' | 'failed';
+    videoId?: string;
+    publishedUrl?: string;
+    error?: string;
+    progress: number; // 0-100
+  }[];
+  
+  // Status
+  overallStatus: 'pending' | 'in-progress' | 'completed' | 'failed';
+  scheduledFor?: Date;
+  
+  // Metadata
+  createdAt: Date;
+  publishedAt?: Date;
+}
+
+// SEO and optimization
+export interface SEOMetadata {
+  projectId: string;
+  
+  // Basic metadata
+  title: string;
+  description: string;
+  tags: string[];
+  category?: string;
+  
+  // Thumbnails
+  thumbnails: {
+    id: string;
+    url: string;
+    isGenerated: boolean;
+    variantName?: string;
+    clickThroughRate?: number;
+    impressions?: number;
+  }[];
+  selectedThumbnail?: string; // thumbnail ID
+  
+  // Captions/Subtitles
+  captions: {
+    language: SupportedLanguage;
+    url: string;
+    isAutoGenerated: boolean;
+    createdAt: Date;
+  }[];
+  
+  // Advanced SEO
+  keywords: {
+    primary: string[];
+    secondary: string[];
+  };
+  hashtags?: string[];
+  customOgImage?: string;
+  
+  lastUpdated: Date;
+}
+
+// Marketing integration
+export type MarketingPlatform = 
+  | 'mailchimp'
+  | 'hubspot'
+  | 'salesforce'
+  | 'activecampaign'
+  | 'custom';
+
+export interface MarketingCampaign {
+  id: string;
+  projectId: string;
+  name: string;
+  type: 'email' | 'social' | 'landing-page' | 'ads';
+  
+  // Platform
+  platform: MarketingPlatform;
+  campaignId?: string;
+  
+  // Content
+  videoUrl: string;
+  landingPageUrl?: string;
+  emailTemplate?: string;
+  
+  // Targeting
+  audience: {
+    segments?: string[];
+    tags?: string[];
+    customList?: string;
+  };
+  
+  // Schedule
+  status: 'draft' | 'scheduled' | 'active' | 'completed' | 'paused';
+  scheduledFor?: Date;
+  endDate?: Date;
+  
+  // Performance
+  metrics: {
+    sent?: number;
+    opened?: number;
+    clicked?: number;
+    conversions?: number;
+    revenue?: number;
+  };
+  
+  createdAt: Date;
+  launchedAt?: Date;
+}
+
+export interface LandingPage {
+  id: string;
+  projectId: string;
+  
+  // Content
+  title: string;
+  headline: string;
+  subheadline?: string;
+  description: string;
+  videoUrl: string;
+  
+  // Design
+  template: 'minimal' | 'product' | 'sales' | 'webinar' | 'custom';
+  theme: {
+    primaryColor: string;
+    secondaryColor: string;
+    backgroundColor: string;
+    textColor: string;
+  };
+  
+  // Components
+  components: {
+    type: 'video' | 'cta' | 'testimonials' | 'features' | 'form' | 'social';
+    config: any;
+    order: number;
+  }[];
+  
+  // Lead capture
+  leadForm?: {
+    fields: {
+      name: string;
+      type: 'text' | 'email' | 'phone' | 'select' | 'textarea';
+      label: string;
+      required: boolean;
+    }[];
+    submitAction: 'email' | 'webhook' | 'integration';
+    submitConfig: any;
+  };
+  
+  // SEO
+  seoTitle?: string;
+  seoDescription?: string;
+  ogImage?: string;
+  
+  // Analytics
+  analytics: {
+    views: number;
+    uniqueVisitors: number;
+    formSubmissions: number;
+    conversionRate: number;
+    avgTimeOnPage: number;
+  };
+  
+  // Publishing
+  isPublished: boolean;
+  url?: string;
+  customDomain?: string;
+  
+  createdAt: Date;
+  publishedAt?: Date;
+}
+
+// Social media automation
+export interface SocialPost {
+  id: string;
+  projectId: string;
+  videoUrl: string;
+  
+  // Content
+  platform: DistributionPlatform;
+  caption: string;
+  hashtags: string[];
+  mentions?: string[];
+  
+  // Media
+  thumbnail?: string;
+  
+  // Scheduling
+  status: 'draft' | 'scheduled' | 'published' | 'failed';
+  scheduledFor?: Date;
+  publishedAt?: Date;
+  
+  // Engagement
+  metrics: {
+    likes?: number;
+    comments?: number;
+    shares?: number;
+    views?: number;
+    clicks?: number;
+  };
+  
+  // Post ID on platform
+  platformPostId?: string;
+  platformUrl?: string;
+  
+  createdAt: Date;
+}
+
+// Analytics dashboard
+export interface AnalyticsDashboard {
+  projectId: string;
+  
+  // Overview
+  overview: {
+    totalViews: number;
+    uniqueViewers: number;
+    avgWatchTime: number;
+    completionRate: number;
+    engagementRate: number;
+  };
+  
+  // Platform breakdown
+  platformMetrics: {
+    platform: DistributionPlatform;
+    views: number;
+    engagement: number;
+    clicks: number;
+    conversions: number;
+  }[];
+  
+  // Geographic data
+  geography: {
+    country: string;
+    views: number;
+    percentage: number;
+  }[];
+  
+  // Device data
+  devices: {
+    type: 'desktop' | 'mobile' | 'tablet';
+    views: number;
+    percentage: number;
+  }[];
+  
+  // Time series data
+  timeSeriesData: {
+    date: string;
+    views: number;
+    engagement: number;
+    conversions: number;
+  }[];
+  
+  // Traffic sources
+  trafficSources: {
+    source: string;
+    views: number;
+    percentage: number;
+  }[];
+  
+  lastUpdated: Date;
+}
+
 // Store state type
 export interface StoreState {
   // State
@@ -704,6 +1416,31 @@ export interface StoreState {
   selectedTemplate: IndustryTemplate | null;
   selectedBrand: BrandIdentity | null;
   videoConfig: VideoRenderConfig | null;
+  
+  // Interactive Elements state
+  hotspots: Map<string, InteractiveHotspot[]>; // sceneId -> hotspots
+  ctas: Map<string, AnimatedCTA[]>; // sceneId -> CTAs
+  currentABTest: ABTest | null;
+  engagementMetrics: Map<string, EngagementMetrics>; // sceneId -> metrics
+  
+  // Collaboration state
+  teamMembers: TeamMember[];
+  comments: Comment[];
+  approvalRequests: ApprovalRequest[];
+  versions: Version[];
+  productionTimeline: ProductionTimeline | null;
+  collaborationSession: CollaborationSession | null;
+  currentUserId: string | null;
+  currentUser: TeamMember | null;
+  
+  // Distribution state
+  platformConnections: PlatformConnection[];
+  distributionJobs: DistributionJob[];
+  seoMetadata: SEOMetadata | null;
+  marketingCampaigns: MarketingCampaign[];
+  landingPages: LandingPage[];
+  socialPosts: SocialPost[];
+  analyticsDashboard: AnalyticsDashboard | null;
   
   // Actions
   createProject: (name: string) => void;
@@ -751,6 +1488,71 @@ export interface StoreState {
   checkRenderStatus: (jobId: string) => Promise<VideoRenderJob>;
   cancelRender: (jobId: string) => Promise<void>;
   generateVoiceover: (text: string, voice: string, language: SupportedLanguage) => Promise<string>; // returns audioUrl
+  
+  // Interactive Elements actions
+  addHotspot: (sceneId: string, hotspot: Omit<InteractiveHotspot, 'id' | 'clicks' | 'impressions'>) => void;
+  updateHotspot: (sceneId: string, hotspotId: string, updates: Partial<InteractiveHotspot>) => void;
+  deleteHotspot: (sceneId: string, hotspotId: string) => void;
+  trackHotspotClick: (sceneId: string, hotspotId: string) => void;
+  
+  addCTA: (sceneId: string, cta: Omit<AnimatedCTA, 'id' | 'views' | 'clicks' | 'conversionRate'>) => void;
+  updateCTA: (sceneId: string, ctaId: string, updates: Partial<AnimatedCTA>) => void;
+  deleteCTA: (sceneId: string, ctaId: string) => void;
+  trackCTAClick: (sceneId: string, ctaId: string) => void;
+  
+  createABTest: (test: Omit<ABTest, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateABTest: (testId: string, updates: Partial<ABTest>) => void;
+  addTestVariant: (testId: string, variant: Omit<VideoVariant, 'id' | 'metrics' | 'createdAt' | 'updatedAt'>) => void;
+  updateEngagementMetrics: (sceneId: string, metrics: Partial<EngagementMetrics>) => void;
+  
+  // Collaboration actions
+  inviteTeamMember: (member: Omit<TeamMember, 'id' | 'status' | 'joinedAt'>) => Promise<void>;
+  updateTeamMember: (memberId: string, updates: Partial<TeamMember>) => void;
+  removeTeamMember: (memberId: string) => void;
+  setCurrentUser: (user: TeamMember) => void;
+  
+  addComment: (comment: Omit<Comment, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateComment: (commentId: string, updates: Partial<Comment>) => void;
+  deleteComment: (commentId: string) => void;
+  resolveComment: (commentId: string, userId: string) => void;
+  replyToComment: (parentId: string, reply: Omit<Comment, 'id' | 'parentId' | 'createdAt' | 'updatedAt'>) => void;
+  
+  createApprovalRequest: (request: Omit<ApprovalRequest, 'id' | 'status' | 'approvals' | 'createdAt' | 'updatedAt'>) => void;
+  respondToApproval: (requestId: string, userId: string, response: ApprovalStatus, feedback?: string) => void;
+  
+  createVersion: (version: Omit<Version, 'id' | 'createdAt'>) => void;
+  restoreVersion: (versionId: string) => void;
+  
+  updateProjectStatus: (status: ProjectStatus) => void;
+  updateProductionTimeline: (updates: Partial<ProductionTimeline>) => void;
+  addTask: (task: Omit<ProductionTimeline['tasks'][0], 'id' | 'createdAt'>) => void;
+  updateTask: (taskId: string, updates: Partial<ProductionTimeline['tasks'][0]>) => void;
+  
+  // Distribution actions
+  connectPlatform: (platform: Omit<PlatformConnection, 'id' | 'connectedAt'>) => Promise<void>;
+  disconnectPlatform: (platformId: string) => void;
+  
+  distributeVideo: (platforms: DistributionPlatform[], metadata: Partial<SEOMetadata>) => Promise<string>; // returns job ID
+  checkDistributionStatus: (jobId: string) => Promise<DistributionJob>;
+  cancelDistribution: (jobId: string) => void;
+  
+  updateSEOMetadata: (metadata: Partial<SEOMetadata>) => void;
+  generateThumbnails: (count: number) => Promise<string[]>; // returns thumbnail URLs
+  generateCaptions: (language: SupportedLanguage) => Promise<string>; // returns caption file URL
+  
+  createMarketingCampaign: (campaign: Omit<MarketingCampaign, 'id' | 'createdAt'>) => void;
+  updateMarketingCampaign: (campaignId: string, updates: Partial<MarketingCampaign>) => void;
+  launchCampaign: (campaignId: string) => Promise<void>;
+  
+  createLandingPage: (page: Omit<LandingPage, 'id' | 'analytics' | 'createdAt'>) => void;
+  updateLandingPage: (pageId: string, updates: Partial<LandingPage>) => void;
+  publishLandingPage: (pageId: string) => Promise<string>; // returns URL
+  
+  scheduleSocialPost: (post: Omit<SocialPost, 'id' | 'createdAt'>) => void;
+  updateSocialPost: (postId: string, updates: Partial<SocialPost>) => void;
+  publishSocialPost: (postId: string) => Promise<void>;
+  
+  fetchAnalytics: () => Promise<void>;
   
   saveToLocalStorage: () => void;
   loadFromLocalStorage: () => void;
