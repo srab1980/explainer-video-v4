@@ -605,6 +605,167 @@ export interface AudioSettings {
   };
 }
 
+// Advanced Video Production Types
+
+// Transitions
+export type TransitionType =
+  | 'fade'
+  | 'dissolve'
+  | 'slide-left'
+  | 'slide-right'
+  | 'slide-up'
+  | 'slide-down'
+  | 'wipe-left'
+  | 'wipe-right'
+  | 'wipe-up'
+  | 'wipe-down'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'pan-left'
+  | 'pan-right'
+  | 'crossfade'
+  | 'push-left'
+  | 'push-right';
+
+export interface SceneTransition {
+  id: string;
+  type: TransitionType;
+  duration: number; // in seconds
+  easing?: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
+}
+
+// Video Effects
+export type VideoFilterType =
+  | 'none'
+  | 'vintage'
+  | 'cinematic'
+  | 'corporate'
+  | 'social'
+  | 'black-white'
+  | 'sepia'
+  | 'vibrant'
+  | 'cool'
+  | 'warm';
+
+export interface ColorCorrection {
+  brightness: number; // -100 to 100
+  contrast: number; // -100 to 100
+  saturation: number; // -100 to 100
+  hue: number; // -180 to 180
+  temperature: number; // -100 to 100 (cool to warm)
+  tint: number; // -100 to 100 (green to magenta)
+}
+
+export interface VideoEffect {
+  id: string;
+  type: 'filter' | 'color-correction' | 'blur' | 'sharpen' | 'vignette' | 'lens-distortion';
+  enabled: boolean;
+  filter?: VideoFilterType;
+  filterIntensity?: number; // 0-100
+  colorCorrection?: ColorCorrection;
+  blurAmount?: number; // 0-20
+  blurType?: 'gaussian' | 'motion' | 'radial';
+  vignetteIntensity?: number; // 0-100
+  vignetteFeather?: number; // 0-100
+  lensDistortion?: number; // -100 to 100
+}
+
+// Text and Graphics Overlays
+export interface TextOverlay {
+  id: string;
+  text: string;
+  position: { x: number; y: number }; // percentage 0-100
+  fontSize: number;
+  fontFamily: string;
+  color: string;
+  backgroundColor?: string;
+  padding?: number;
+  alignment: 'left' | 'center' | 'right';
+  animation?: {
+    type: 'none' | 'typewriter' | 'fade-in' | 'slide-in' | 'bounce';
+    duration: number;
+    delay: number;
+  };
+  startTime: number;
+  endTime: number;
+  layer: number;
+}
+
+export interface LogoOverlay {
+  id: string;
+  imageUrl: string;
+  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center' | 'custom';
+  customPosition?: { x: number; y: number };
+  size: number; // percentage of video width
+  opacity: number; // 0-100
+  startTime: number;
+  endTime: number;
+  animation?: {
+    type: 'none' | 'fade-in' | 'slide-in' | 'zoom-in';
+    duration: number;
+  };
+}
+
+export interface LowerThird {
+  id: string;
+  title: string;
+  subtitle?: string;
+  style: 'modern' | 'classic' | 'minimal' | 'bold' | 'elegant';
+  position: 'bottom' | 'top' | 'middle';
+  color: string;
+  startTime: number;
+  duration: number;
+  animation: {
+    in: 'slide' | 'fade' | 'wipe';
+    out: 'slide' | 'fade' | 'wipe';
+    duration: number;
+  };
+}
+
+// Audio Library Types
+export interface AudioTrack {
+  id: string;
+  name: string;
+  category: 'corporate' | 'tech' | 'modern' | 'ambient' | 'energetic' | 'calm' | 'dramatic' | 'minimal';
+  mood: 'upbeat' | 'professional' | 'creative' | 'dramatic' | 'minimal' | 'inspiring' | 'calm' | 'energetic';
+  duration: number; // in seconds
+  bpm?: number;
+  key?: string;
+  url: string;
+  tags: string[];
+  description?: string;
+}
+
+export interface SoundEffect {
+  id: string;
+  name: string;
+  category: 'interface' | 'ambient' | 'impact' | 'transition' | 'ui-feedback';
+  subcategory?: string;
+  duration: number;
+  url: string;
+  tags: string[];
+  description?: string;
+}
+
+export interface AudioMixerTrack {
+  id: string;
+  name: string;
+  type: 'voiceover' | 'music' | 'sfx' | 'master';
+  volume: number; // 0-100
+  muted: boolean;
+  solo: boolean;
+  audioUrl?: string;
+}
+
+export interface AdvancedAudioSettings {
+  fadeIn: number; // seconds
+  fadeOut: number; // seconds
+  ducking: boolean; // auto-lower music during speech
+  duckingAmount: number; // 0-100
+  noiseReduction: boolean;
+  normalize: boolean; // auto-balance volume
+}
+
 // Industry template types
 export type IndustryTemplate = 
   | 'saas-product-demo'

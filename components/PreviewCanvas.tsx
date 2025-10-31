@@ -396,7 +396,7 @@ export default function PreviewCanvas() {
                       initial={finalAnimation.initial}
                       animate={finalAnimation.animate}
                       transition={{ 
-                        ...finalAnimation.transition,
+                        ...(('transition' in finalAnimation && finalAnimation.transition) || {}),
                         delay: finalDelay,
                         duration: finalDuration
                       }}
@@ -644,7 +644,7 @@ export default function PreviewCanvas() {
                             initial={finalAnimation.initial}
                             animate={finalAnimation.animate}
                             transition={{ 
-                              ...finalAnimation.transition,
+                              ...(('transition' in finalAnimation && finalAnimation.transition) || {}),
                               delay: finalDelay,
                               duration: finalDuration
                             }}

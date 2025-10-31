@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     //   .order('created_at', { ascending: false });
 
     // Mock response for now
-    const teamMembers = [];
+    const teamMembers: any[] = [];
 
     return NextResponse.json({ teamMembers });
   } catch (error: any) {

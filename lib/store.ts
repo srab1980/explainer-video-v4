@@ -34,6 +34,8 @@ import type {
   LandingPage,
   SocialPost,
   AnalyticsDashboard,
+  IllustrationAnimation,
+  TransparentBackgroundConfig,
 } from './types';
 
 const STORAGE_KEY = 'storyvid-project';
@@ -423,6 +425,7 @@ export const useStore = create<StoreState>((set, get) => ({
           customStyleDescription,
           size: '1024x1024',
           quality: 'standard',
+          autoTransparent: true, // Enable automatic transparent background generation
         }),
       });
 
@@ -455,6 +458,15 @@ export const useStore = create<StoreState>((set, get) => ({
             visible: true,
             opacity: 100,
           },
+          // Automatically include transparent background if available
+          transparentImageUrl: data.transparentImageUrl || undefined,
+          transparentBackground: data.hasTransparent ? {
+            enabled: true,
+            method: 'color-based',
+            tolerance: 40,
+            smoothEdges: true,
+            featherAmount: 2,
+          } : undefined,
         };
 
         get().addIllustration(sceneId, newIllustration);
@@ -1598,15 +1610,9 @@ export const useStore = create<StoreState>((set, get) => ({
 
   scheduleSocialPost: (post) => {
     const newPost: SocialPost = {
-      id: uuidv4(),
-      projectId: post.projectId,
-      videoUrl: post.videoUrl,
-      platform: post.platform,
-      caption: post.caption,
-      hashtags: post.hashtags,
-      status: post.status,
-      createdAt: new Date(),
       ...post,
+      id: uuidv4(),
+      createdAt: new Date(),
     };
     const { socialPosts } = get();
     set({ socialPosts: [...socialPosts, newPost] });
