@@ -5,6 +5,7 @@ import { useStore } from '@/lib/store';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Play, Pause, Sparkles, Maximize, X } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
+import type { IllustrationAnimation, IllustrationAnimationType } from '@/lib/types';
 
 const animationVariants = {
   fade: {
@@ -57,6 +58,218 @@ const animationVariants = {
     },
     exit: { y: 200, opacity: 0, rotate: 180 },
   },
+};
+
+// Helper function to create animation variants from IllustrationAnimation
+const createIllustrationAnimationVariant = (animation: IllustrationAnimation) => {
+  const { type, duration, easing, repeat, scaleParams, rotationParams, opacityParams, transformParams, effectsParams } = animation;
+  
+  // Map easing to framer-motion easing
+  const easingMap: Record<string, any> = {
+    'linear': 'linear',
+    'ease-in': 'easeIn',
+    'ease-out': 'easeOut',
+    'ease-in-out': 'easeInOut',
+    'spring': { type: 'spring', stiffness: 300, damping: 20 },
+    'bounce': { type: 'spring', bounce: 0.5 },
+    'elastic': { type: 'spring', stiffness: 100, damping: 10 }
+  };
+  
+  const ease = easingMap[easing] || 'easeInOut';
+  const repeatConfig = repeat === 'loop' ? Infinity : repeat === 'ping-pong' ? Infinity : 0;
+  const repeatType = repeat === 'ping-pong' ? 'reverse' : 'loop';
+  
+  // Base transition config
+  const transition: any = {
+    duration,
+    ease,
+    repeat: repeatConfig,
+    repeatType: repeatType as any
+  };
+
+  // Create animation based on type
+  switch (type) {
+    // Scale animations
+    case 'scale-grow':
+      return {
+        initial: { scale: scaleParams?.from || 0.5 },
+        animate: { scale: scaleParams?.to || 1 },
+        transition
+      };
+    case 'scale-shrink':
+      return {
+        initial: { scale: scaleParams?.from || 1 },
+        animate: { scale: scaleParams?.to || 0.5 },
+        transition
+      };
+    case 'scale-pulse':
+      return {
+        initial: { scale: 1 },
+        animate: { scale: [1, scaleParams?.to || 1.1, 1] },
+        transition: { ...transition, repeat: Infinity }
+      };
+    case 'scale-breathe':
+      return {
+        initial: { scale: 1 },
+        animate: { scale: [1, scaleParams?.to || 1.05, 1] },
+        transition: { ...transition, duration: duration * 2, repeat: Infinity, repeatType: 'reverse' }
+      };
+    
+    // Rotation animations
+    case 'rotate-spin':
+      return {
+        initial: { rotate: 0 },
+        animate: { rotate: rotationParams?.to || 360 },
+        transition: { ...transition, repeat: Infinity, ease: 'linear' }
+      };
+    case 'rotate-wobble':
+      return {
+        initial: { rotate: 0 },
+        animate: { rotate: [0, rotationParams?.to || 10, 0, rotationParams?.from || -10, 0] },
+        transition: { ...transition, repeat: Infinity }
+      };
+    case 'rotate-tilt':
+      return {
+        initial: { rotate: 0 },
+        animate: { rotate: rotationParams?.to || 15 },
+        transition
+      };
+    case 'rotate-flip':
+      return {
+        initial: { rotateY: 0 },
+        animate: { rotateY: 180 },
+        transition
+      };
+    
+    // Opacity animations
+    case 'opacity-fade-in':
+      return {
+        initial: { opacity: opacityParams?.from || 0 },
+        animate: { opacity: opacityParams?.to || 1 },
+        transition
+      };
+    case 'opacity-fade-out':
+      return {
+        initial: { opacity: opacityParams?.from || 1 },
+        animate: { opacity: opacityParams?.to || 0 },
+        transition
+      };
+    case 'opacity-shimmer':
+      return {
+        initial: { opacity: 1 },
+        animate: { opacity: [1, 0.5, 1] },
+        transition: { ...transition, repeat: Infinity, duration: duration / 2 }
+      };
+    case 'opacity-ghost':
+      return {
+        initial: { opacity: 1 },
+        animate: { opacity: [1, 0.3, 1] },
+        transition: { ...transition, repeat: Infinity }
+      };
+    
+    // Transform animations
+    case 'transform-slide-in':
+      const slideInDirection = transformParams?.direction || 'left';
+      const slideInDistance = transformParams?.distance || 100;
+      return {
+        initial: { 
+          x: slideInDirection === 'left' ? -slideInDistance : slideInDirection === 'right' ? slideInDistance : 0,
+          y: slideInDirection === 'up' ? -slideInDistance : slideInDirection === 'down' ? slideInDistance : 0,
+          opacity: 0
+        },
+        animate: { x: 0, y: 0, opacity: 1 },
+        transition
+      };
+    case 'transform-slide-out':
+      const slideOutDirection = transformParams?.direction || 'right';
+      const slideOutDistance = transformParams?.distance || 100;
+      return {
+        initial: { x: 0, y: 0, opacity: 1 },
+        animate: { 
+          x: slideOutDirection === 'left' ? -slideOutDistance : slideOutDirection === 'right' ? slideOutDistance : 0,
+          y: slideOutDirection === 'up' ? -slideOutDistance : slideOutDirection === 'down' ? slideOutDistance : 0,
+          opacity: 0
+        },
+        transition
+      };
+    case 'transform-bounce':
+      return {
+        initial: { y: 0 },
+        animate: { y: [0, -30, 0] },
+        transition: { ...transition, repeat: Infinity }
+      };
+    case 'transform-elastic':
+      return {
+        initial: { scale: 0 },
+        animate: { scale: 1 },
+        transition: { ...transition, type: 'spring', stiffness: 200, damping: 10 }
+      };
+    
+    // Continuous animations
+    case 'continuous-float':
+      return {
+        initial: { y: 0 },
+        animate: { y: [-10, 10, -10] },
+        transition: { ...transition, repeat: Infinity, ease: 'easeInOut' }
+      };
+    case 'continuous-rotate':
+      return {
+        initial: { rotate: 0 },
+        animate: { rotate: 360 },
+        transition: { ...transition, repeat: Infinity, ease: 'linear' }
+      };
+    case 'continuous-pulse':
+      return {
+        initial: { scale: 1 },
+        animate: { scale: [1, 1.1, 1] },
+        transition: { ...transition, repeat: Infinity }
+      };
+    
+    // Effects animations (use filters)
+    case 'effects-glow':
+      return {
+        initial: { filter: 'drop-shadow(0 0 0px rgba(147, 51, 234, 0))' },
+        animate: { 
+          filter: [
+            'drop-shadow(0 0 0px rgba(147, 51, 234, 0))',
+            `drop-shadow(0 0 ${effectsParams?.radius || 20}px rgba(147, 51, 234, 0.8))`,
+            'drop-shadow(0 0 0px rgba(147, 51, 234, 0))'
+          ]
+        },
+        transition: { ...transition, repeat: Infinity }
+      };
+    case 'effects-shadow':
+      return {
+        initial: { filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.2))' },
+        animate: { 
+          filter: [
+            'drop-shadow(2px 2px 4px rgba(0,0,0,0.2))',
+            `drop-shadow(${effectsParams?.radius || 10}px ${effectsParams?.radius || 10}px 20px rgba(0,0,0,0.5))`,
+            'drop-shadow(2px 2px 4px rgba(0,0,0,0.2))'
+          ]
+        },
+        transition: { ...transition, repeat: Infinity }
+      };
+    case 'effects-blur':
+      return {
+        initial: { filter: 'blur(0px)' },
+        animate: { filter: [`blur(0px)`, `blur(${effectsParams?.radius || 5}px)`, `blur(0px)`] },
+        transition: { ...transition, repeat: Infinity }
+      };
+    case 'effects-sharpen':
+      return {
+        initial: { filter: 'contrast(1)' },
+        animate: { filter: ['contrast(1)', 'contrast(1.5)', 'contrast(1)'] },
+        transition: { ...transition, repeat: Infinity }
+      };
+    
+    default:
+      return {
+        initial: {},
+        animate: {},
+        transition
+      };
+  }
 };
 
 export default function PreviewCanvas() {
@@ -151,6 +364,24 @@ export default function PreviewCanvas() {
                   const delay = illustration.animationParams?.delay || (idx * 0.1);
                   const duration = illustration.animationParams?.duration || 0.3;
 
+                  // Get illustration-specific animations
+                  const illustrationAnimations = illustration.illustrationAnimations || [];
+                  
+                  // If there are illustration-specific animations, use the first one (primary)
+                  // In the future, we could layer multiple animations
+                  const primaryAnimation = illustrationAnimations.length > 0 
+                    ? createIllustrationAnimationVariant(illustrationAnimations[0])
+                    : null;
+
+                  // Use primary animation if available, otherwise use scene animation
+                  const finalAnimation = primaryAnimation || illustrationAnimation;
+                  const finalDelay = primaryAnimation 
+                    ? (illustrationAnimations[0].delay || 0)
+                    : delay;
+                  const finalDuration = primaryAnimation 
+                    ? (illustrationAnimations[0].duration || 1)
+                    : duration;
+
                   return (
                     <motion.div
                       key={illustration.id}
@@ -162,14 +393,20 @@ export default function PreviewCanvas() {
                         opacity: (illustration.layer?.opacity || 100) / 100,
                         zIndex: illustration.layer?.zIndex || 0,
                       }}
-                      initial={illustrationAnimation.initial}
-                      animate={illustrationAnimation.animate}
-                      transition={{ delay, duration }}
+                      initial={finalAnimation.initial}
+                      animate={finalAnimation.animate}
+                      transition={{ 
+                        ...finalAnimation.transition,
+                        delay: finalDelay,
+                        duration: finalDuration
+                      }}
                     >
-                      {illustration.type === 'ai-generated' && illustration.imageUrl ? (
+                      {illustration.type === 'ai-generated' && (illustration.imageUrl || illustration.transparentImageUrl) ? (
                         <div className="relative group">
                           <img
-                            src={illustration.imageUrl}
+                            src={illustration.transparentBackground?.enabled && illustration.transparentImageUrl 
+                              ? illustration.transparentImageUrl 
+                              : illustration.imageUrl}
                             alt={illustration.imagePrompt || 'AI generated illustration'}
                             style={{
                               width: `${illustration.size}px`,
@@ -188,6 +425,14 @@ export default function PreviewCanvas() {
                               AI
                             </div>
                           </div>
+                          {/* Transparent Background Badge */}
+                          {illustration.transparentBackground?.enabled && illustration.transparentImageUrl && (
+                            <div className="absolute -bottom-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="bg-green-600 text-white px-2 py-1 rounded-full text-xs font-medium">
+                                PNG
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         (() => {
@@ -371,6 +616,20 @@ export default function PreviewCanvas() {
                         const delay = illustration.animationParams?.delay || (idx * 0.1);
                         const duration = illustration.animationParams?.duration || 0.3;
 
+                        // Get illustration-specific animations (fullscreen view)
+                        const illustrationAnimations = illustration.illustrationAnimations || [];
+                        const primaryAnimation = illustrationAnimations.length > 0 
+                          ? createIllustrationAnimationVariant(illustrationAnimations[0])
+                          : null;
+
+                        const finalAnimation = primaryAnimation || illustrationAnimation;
+                        const finalDelay = primaryAnimation 
+                          ? (illustrationAnimations[0].delay || 0)
+                          : delay;
+                        const finalDuration = primaryAnimation 
+                          ? (illustrationAnimations[0].duration || 1)
+                          : duration;
+
                         return (
                           <motion.div
                             key={illustration.id}
@@ -382,14 +641,20 @@ export default function PreviewCanvas() {
                               opacity: (illustration.layer?.opacity || 100) / 100,
                               zIndex: illustration.layer?.zIndex || 0,
                             }}
-                            initial={illustrationAnimation.initial}
-                            animate={illustrationAnimation.animate}
-                            transition={{ delay, duration }}
+                            initial={finalAnimation.initial}
+                            animate={finalAnimation.animate}
+                            transition={{ 
+                              ...finalAnimation.transition,
+                              delay: finalDelay,
+                              duration: finalDuration
+                            }}
                           >
-                            {illustration.type === 'ai-generated' && illustration.imageUrl ? (
+                            {illustration.type === 'ai-generated' && (illustration.imageUrl || illustration.transparentImageUrl) ? (
                               <div className="relative group">
                                 <img
-                                  src={illustration.imageUrl}
+                                  src={illustration.transparentBackground?.enabled && illustration.transparentImageUrl 
+                                    ? illustration.transparentImageUrl 
+                                    : illustration.imageUrl}
                                   alt={illustration.imagePrompt || 'AI generated illustration'}
                                   style={{
                                     width: `${illustration.size * 1.5}px`,

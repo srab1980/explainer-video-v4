@@ -9,6 +9,52 @@ export type AnimationType =
   | 'path'
   | 'physics';
 
+// Illustration-specific animation types
+export type IllustrationAnimationType =
+  | 'scale-grow'
+  | 'scale-shrink'
+  | 'scale-pulse'
+  | 'scale-breathe'
+  | 'rotate-spin'
+  | 'rotate-wobble'
+  | 'rotate-tilt'
+  | 'rotate-flip'
+  | 'opacity-fade-in'
+  | 'opacity-fade-out'
+  | 'opacity-shimmer'
+  | 'opacity-ghost'
+  | 'transform-slide-in'
+  | 'transform-slide-out'
+  | 'transform-bounce'
+  | 'transform-elastic'
+  | 'continuous-float'
+  | 'continuous-rotate'
+  | 'continuous-pulse'
+  | 'effects-glow'
+  | 'effects-shadow'
+  | 'effects-blur'
+  | 'effects-sharpen';
+
+// Background removal methods
+export type BackgroundRemovalMethod = 
+  | 'ai-based'      // Use AI model to detect and remove background
+  | 'color-based'   // Remove solid color backgrounds
+  | 'edge-based'    // Use edge detection
+  | 'manual';       // User-controlled masking
+
+// Trigger types for illustration animations
+export type AnimationTrigger = 
+  | 'auto'          // Automatic when scene starts
+  | 'hover'         // On hover (interactive)
+  | 'click'         // On click (interactive)
+  | 'timeline';     // Based on timeline position
+
+// Repeat modes for illustration animations
+export type RepeatMode = 
+  | 'none'          // Play once
+  | 'loop'          // Repeat continuously
+  | 'ping-pong';    // Alternate direction
+
 // Layout types
 export type LayoutType = 
   | 'horizontal-row'
@@ -118,6 +164,85 @@ export interface AnimationParams {
   };
 }
 
+// Illustration-specific animation configuration
+export interface IllustrationAnimation {
+  id: string;
+  type: IllustrationAnimationType;
+  duration: number; // in seconds
+  delay: number; // Start delay in seconds
+  easing: EasingFunction;
+  repeat: RepeatMode;
+  trigger: AnimationTrigger;
+  
+  // Animation-specific parameters
+  scaleParams?: {
+    from: number;  // Starting scale (0-2)
+    to: number;    // Ending scale (0-2)
+    frequency?: number; // For pulse/breathe effects
+  };
+  
+  rotationParams?: {
+    from: number;  // Starting rotation in degrees
+    to: number;    // Ending rotation in degrees
+    axis?: 'x' | 'y' | 'z'; // For 3D rotations
+  };
+  
+  opacityParams?: {
+    from: number;  // Starting opacity (0-100)
+    to: number;    // Ending opacity (0-100)
+    frequency?: number; // For shimmer effects
+  };
+  
+  transformParams?: {
+    fromPosition?: { x: number; y: number };
+    toPosition?: { x: number; y: number };
+    distance?: number; // For slide animations
+    direction?: 'up' | 'down' | 'left' | 'right';
+  };
+  
+  effectsParams?: {
+    intensity: number; // 0-100
+    radius?: number;   // For glow/shadow/blur
+    color?: string;    // For glow/shadow
+  };
+}
+
+// Transparent background configuration
+export interface TransparentBackgroundConfig {
+  enabled: boolean;
+  method: BackgroundRemovalMethod;
+  
+  // Color-based removal settings
+  targetColor?: string; // Hex color to remove
+  tolerance?: number;   // Color matching tolerance (0-100)
+  
+  // Edge-based removal settings
+  edgeThreshold?: number; // Edge detection sensitivity (0-100)
+  
+  // AI-based removal settings
+  aiModel?: 'standard' | 'high-quality'; // Quality level
+  preserveDetails?: boolean; // Preserve fine details
+  
+  // Manual masking settings (for future implementation)
+  maskPath?: string; // Path to mask file or SVG path data
+  
+  // Processing options
+  smoothEdges?: boolean; // Apply anti-aliasing to edges
+  featherAmount?: number; // Edge feathering (0-20 pixels)
+}
+
+// Animation keyframe for timeline-based animations
+export interface AnimationKeyframe {
+  time: number; // Time in seconds from start
+  properties: {
+    position?: { x: number; y: number };
+    scale?: number;
+    rotation?: number;
+    opacity?: number;
+  };
+  easing?: EasingFunction;
+}
+
 // Layer information for advanced editing
 export interface LayerInfo {
   zIndex: number;
@@ -153,8 +278,16 @@ export interface Illustration {
   
   // Advanced features
   effects?: VisualEffects;
-  animationParams?: AnimationParams;
+  animationParams?: AnimationParams; // Scene-level animation
   layer?: LayerInfo;
+  
+  // Transparent background support
+  transparentBackground?: TransparentBackgroundConfig;
+  transparentImageUrl?: string; // URL of processed transparent PNG
+  
+  // Illustration-specific animations
+  illustrationAnimations?: IllustrationAnimation[]; // Multiple animations per illustration
+  animationKeyframes?: AnimationKeyframe[]; // Timeline-based keyframes
   
   // Metadata
   createdAt?: Date;
@@ -236,6 +369,29 @@ export interface GenerateImageResponse {
   imageUrl: string;
   prompt: string;
   error?: string;
+}
+
+// Transparent background generation types
+export interface RemoveBackgroundRequest {
+  imageUrl: string; // Source image URL or data URI
+  method: BackgroundRemovalMethod;
+  config?: Partial<TransparentBackgroundConfig>;
+}
+
+export interface RemoveBackgroundResponse {
+  transparentImageUrl: string; // URL to transparent PNG
+  originalImageUrl: string;
+  method: BackgroundRemovalMethod;
+  processingTime?: number; // Time taken in ms
+  error?: string;
+}
+
+// Illustration animation export types
+export interface IllustrationAnimationExport {
+  illustrationId: string;
+  animations: IllustrationAnimation[];
+  keyframes?: AnimationKeyframe[];
+  exportFormat: 'css' | 'js' | 'json';
 }
 
 // Style preset for consistent look
@@ -1463,6 +1619,14 @@ export interface StoreState {
   // Multi-select actions
   selectIllustrations: (illustrationIds: string[]) => void;
   batchUpdateIllustrations: (sceneId: string, illustrationIds: string[], updates: Partial<Illustration>) => void;
+  
+  // Illustration Animation actions
+  addIllustrationAnimation: (sceneId: string, illustrationId: string, animation: Omit<IllustrationAnimation, 'id'>) => void;
+  updateIllustrationAnimation: (sceneId: string, illustrationId: string, animationId: string, updates: Partial<IllustrationAnimation>) => void;
+  removeIllustrationAnimation: (sceneId: string, illustrationId: string, animationId: string) => void;
+  
+  // Transparent Background actions
+  updateTransparentBackground: (sceneId: string, illustrationId: string, config: TransparentBackgroundConfig) => Promise<void>;
   
   selectScene: (sceneId: string | null) => void;
   

@@ -2,10 +2,11 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useStore } from '@/lib/store';
-import type { Scene, IllustrationStyle, VisualEffects } from '@/lib/types';
+import type { Scene, IllustrationStyle, VisualEffects, IllustrationAnimation, TransparentBackgroundConfig } from '@/lib/types';
 import * as LucideIcons from 'lucide-react';
 import { Search, Plus, Trash2, Wand2, Layers, Sparkles, AlertCircle, X, ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import Fuse from 'fuse.js';
+import IllustrationAnimationPanel from '../IllustrationAnimationPanel';
 
 interface IllustrationTabProps {
   scene: Scene;
@@ -34,6 +35,10 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
     selectedIllustrationIds,
     selectIllustrations,
     batchUpdateIllustrations,
+    addIllustrationAnimation,
+    updateIllustrationAnimation,
+    removeIllustrationAnimation,
+    updateTransparentBackground,
   } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,6 +52,7 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
   const [fullscreenImage, setFullscreenImage] = useState<{ illustration: any; index: number } | null>(null);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [rotation, setRotation] = useState(0);
+  const [previewAnimationKey, setPreviewAnimationKey] = useState(0); // Force re-render for animation preview
 
   // Fuzzy search setup
   const fuse = useMemo(
@@ -656,6 +662,49 @@ export default function IllustrationTab({ scene }: IllustrationTabProps) {
               {/* Effects panel will be expanded in future iterations */}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Illustration Animation & Transparent Background Panel */}
+      {selectedIllustration && selectedIllustration.type === 'ai-generated' && (
+        <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg">
+          <h4 className="font-semibold text-purple-900 flex items-center gap-2 mb-4">
+            <Sparkles className="w-5 h-5" />
+            Illustration Animations & Effects
+          </h4>
+          <IllustrationAnimationPanel
+            illustrationId={selectedIllustration.id}
+            animations={selectedIllustration.illustrationAnimations || []}
+            transparentBgConfig={selectedIllustration.transparentBackground}
+            onAddAnimation={(animation) => {
+              addIllustrationAnimation(scene.id, selectedIllustration.id, animation);
+            }}
+            onUpdateAnimation={(animationId, updates) => {
+              updateIllustrationAnimation(scene.id, selectedIllustration.id, animationId, updates);
+            }}
+            onRemoveAnimation={(animationId) => {
+              removeIllustrationAnimation(scene.id, selectedIllustration.id, animationId);
+            }}
+            onUpdateTransparentBg={(config) => {
+              updateTransparentBackground(scene.id, selectedIllustration.id, config);
+            }}
+            onPreviewAnimation={(animationId) => {
+              // Force re-render of PreviewCanvas to replay animation
+              // Find the animation and briefly highlight it
+              const animation = selectedIllustration.illustrationAnimations?.find(a => a.id === animationId);
+              if (animation) {
+                // Trigger a re-render by updating the key
+                setPreviewAnimationKey(prev => prev + 1);
+                
+                // Show a brief notification
+                console.log(`Previewing animation: ${animation.type}`);
+                
+                // Optional: Could add visual feedback in the future
+                // For now, the PreviewCanvas will automatically show the animation
+                // because it's already configured in the illustration
+              }
+            }}
+          />
         </div>
       )}
 

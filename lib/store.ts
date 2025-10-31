@@ -516,6 +516,169 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ selectedSceneId: sceneId, selectedIllustrationIds: [] });
   },
 
+  // Illustration Animation actions
+  addIllustrationAnimation: (sceneId: string, illustrationId: string, animation: Omit<IllustrationAnimation, 'id'>) => {
+    const { currentProject } = get();
+    if (currentProject) {
+      const newAnimation: IllustrationAnimation = {
+        ...animation,
+        id: `anim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      };
+
+      set({
+        currentProject: {
+          ...currentProject,
+          scenes: currentProject.scenes.map((scene) =>
+            scene.id === sceneId
+              ? {
+                  ...scene,
+                  illustrations: scene.illustrations.map((ill) =>
+                    ill.id === illustrationId
+                      ? {
+                          ...ill,
+                          illustrationAnimations: [
+                            ...(ill.illustrationAnimations || []),
+                            newAnimation,
+                          ],
+                          updatedAt: new Date(),
+                        }
+                      : ill
+                  ),
+                }
+              : scene
+          ),
+          updatedAt: new Date(),
+        },
+      });
+      get().saveToLocalStorage();
+    }
+  },
+
+  updateIllustrationAnimation: (
+    sceneId: string,
+    illustrationId: string,
+    animationId: string,
+    updates: Partial<IllustrationAnimation>
+  ) => {
+    const { currentProject } = get();
+    if (currentProject) {
+      set({
+        currentProject: {
+          ...currentProject,
+          scenes: currentProject.scenes.map((scene) =>
+            scene.id === sceneId
+              ? {
+                  ...scene,
+                  illustrations: scene.illustrations.map((ill) =>
+                    ill.id === illustrationId
+                      ? {
+                          ...ill,
+                          illustrationAnimations: (ill.illustrationAnimations || []).map((anim) =>
+                            anim.id === animationId
+                              ? { ...anim, ...updates }
+                              : anim
+                          ),
+                          updatedAt: new Date(),
+                        }
+                      : ill
+                  ),
+                }
+              : scene
+          ),
+          updatedAt: new Date(),
+        },
+      });
+      get().saveToLocalStorage();
+    }
+  },
+
+  removeIllustrationAnimation: (sceneId: string, illustrationId: string, animationId: string) => {
+    const { currentProject } = get();
+    if (currentProject) {
+      set({
+        currentProject: {
+          ...currentProject,
+          scenes: currentProject.scenes.map((scene) =>
+            scene.id === sceneId
+              ? {
+                  ...scene,
+                  illustrations: scene.illustrations.map((ill) =>
+                    ill.id === illustrationId
+                      ? {
+                          ...ill,
+                          illustrationAnimations: (ill.illustrationAnimations || []).filter(
+                            (anim) => anim.id !== animationId
+                          ),
+                          updatedAt: new Date(),
+                        }
+                      : ill
+                  ),
+                }
+              : scene
+          ),
+          updatedAt: new Date(),
+        },
+      });
+      get().saveToLocalStorage();
+    }
+  },
+
+  // Transparent background actions
+  updateTransparentBackground: async (
+    sceneId: string,
+    illustrationId: string,
+    config: TransparentBackgroundConfig
+  ) => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+
+    // Find the illustration
+    const scene = currentProject.scenes.find(s => s.id === sceneId);
+    const illustration = scene?.illustrations.find(ill => ill.id === illustrationId);
+    
+    if (!illustration || illustration.type !== 'ai-generated' || !illustration.imageUrl) {
+      return;
+    }
+
+    // If enabling transparent background, process the image
+    if (config.enabled && !illustration.transparentImageUrl) {
+      try {
+        const response = await fetch('/api/remove-background', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageUrl: illustration.imageUrl,
+            method: config.method,
+            config,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to remove background');
+        }
+
+        const data = await response.json();
+        
+        // Update illustration with transparent image and config
+        get().updateIllustration(sceneId, illustrationId, {
+          transparentBackground: config,
+          transparentImageUrl: data.transparentImageUrl,
+        });
+      } catch (error) {
+        console.error('Error removing background:', error);
+        // Still update config even if processing failed
+        get().updateIllustration(sceneId, illustrationId, {
+          transparentBackground: { ...config, enabled: false },
+        });
+      }
+    } else {
+      // Just update config
+      get().updateIllustration(sceneId, illustrationId, {
+        transparentBackground: config,
+      });
+    }
+  },
+
   // Enhanced AI actions
   transcribeVoice: async (audioBlob: Blob, language: SupportedLanguage) => {
     set({ isTranscribing: true });
