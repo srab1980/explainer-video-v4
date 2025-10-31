@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Volume2, Music, Mic, Headphones, Settings, Play, Pause, RotateCcw } from 'lucide-react';
+import type { AudioMixerTrack } from '@/lib/types';
 
 interface AudioTrack {
   id: string;

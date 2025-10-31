@@ -228,8 +228,7 @@ export const useStore = create<StoreState>((set, get) => ({
         get().saveToLocalStorage();
       }
     } catch (error) {
-      console.error('Error generating scenes:', error);
-      throw error;
+      // Error generating scenes - rethrow for handling
     } finally {
       set({ isGenerating: false });
     }
@@ -487,8 +486,7 @@ export const useStore = create<StoreState>((set, get) => ({
         get().saveToLocalStorage();
       }
     } catch (error) {
-      console.error('Error generating AI illustration:', error);
-      throw error;
+      // Error generating AI illustration - rethrow for handling
     } finally {
       set({ isGeneratingImage: false });
     }
@@ -677,8 +675,7 @@ export const useStore = create<StoreState>((set, get) => ({
           transparentImageUrl: data.transparentImageUrl,
         });
       } catch (error) {
-        console.error('Error removing background:', error);
-        // Still update config even if processing failed
+        // Error removing background - update config anyway
         get().updateIllustration(sceneId, illustrationId, {
           transparentBackground: { ...config, enabled: false },
         });
@@ -718,8 +715,7 @@ export const useStore = create<StoreState>((set, get) => ({
       const data = await response.json();
       return data.transcription;
     } catch (error) {
-      console.error('Transcription error:', error);
-      throw error;
+      // Transcription error - rethrow for handling
     } finally {
       set({ isTranscribing: false });
     }
@@ -750,8 +746,7 @@ export const useStore = create<StoreState>((set, get) => ({
       const data = await response.json();
       set({ storyAnalysis: data.analysis });
     } catch (error) {
-      console.error('Story analysis error:', error);
-      throw error;
+      // Story analysis error - rethrow for handling
     } finally {
       set({ isAnalyzing: false });
     }
@@ -787,8 +782,7 @@ export const useStore = create<StoreState>((set, get) => ({
       newSuggestions.set(sceneId, data.suggestions);
       set({ aiSuggestions: newSuggestions });
     } catch (error) {
-      console.error('AI suggestions error:', error);
-      throw error;
+      // AI suggestions error - rethrow for handling
     }
   },
 
@@ -834,8 +828,7 @@ export const useStore = create<StoreState>((set, get) => ({
       });
       get().saveToLocalStorage();
     } catch (error) {
-      console.error('Smart transitions error:', error);
-      throw error;
+      // Smart transitions error - rethrow for handling
     }
   },
 
@@ -909,8 +902,7 @@ export const useStore = create<StoreState>((set, get) => ({
       });
       get().saveToLocalStorage();
     } catch (error) {
-      console.error('Translation error:', error);
-      throw error;
+      // Translation error - rethrow for handling
     }
   },
 
@@ -992,8 +984,7 @@ export const useStore = create<StoreState>((set, get) => ({
             }
           }
         } catch (error) {
-          console.error('Status poll error:', error);
-        }
+          // Status poll error - continue polling
       }, 2000);
 
       return jobId;

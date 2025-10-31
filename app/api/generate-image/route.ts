@@ -7,6 +7,11 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+if (!process.env.OPENAI_API_KEY) {
+  console.error('OpenAI API key not configured');
+  throw new Error('OpenAI API key is required for image generation');
+}
+
 // Style-specific prompt modifiers with transparent background optimization
 const STYLE_MODIFIERS = {
   'modern-flat': 'in a modern flat design style, minimalist, clean geometric shapes, bold colors, simple forms, vector art style, 2D, no gradients, professional, isolated subject on white background',
@@ -94,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     const fullPrompt = `${prompt}, ${styleModifier}. High quality, detailed, centered composition, clean white background for easy removal.`;
 
-    console.log('Generating DALL-E image with prompt:', fullPrompt);
+    console.log('Generating DALL-E image with prompt');
 
     // Generate image with DALL-E
     const response = await openai.images.generate({
@@ -112,17 +117,17 @@ export async function POST(request: NextRequest) {
       throw new Error('No image URL in response');
     }
 
-    console.log('Image generated successfully:', imageUrl);
+    // Image generated successfully
 
     // Automatically generate transparent version if requested
     let transparentImageUrl = null;
     if (autoTransparent) {
-      console.log('Automatically removing background...');
+      // Automatically removing background
       transparentImageUrl = await removeBackgroundAuto(imageUrl);
       if (transparentImageUrl) {
-        console.log('Transparent version created successfully');
+        // Transparent version created successfully
       } else {
-        console.log('Background removal failed, using original');
+        // Background removal failed, using original
       }
     }
 

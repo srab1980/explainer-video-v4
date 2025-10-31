@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Generating voiceovers for ${scenes.length} scenes...`);
+    // Generate voiceover data
 
     // Generate voiceover for each scene
     const voiceovers: SceneVoiceover[] = [];
@@ -48,11 +48,11 @@ export async function POST(request: NextRequest) {
       try {
         // Skip if no voiceover text
         if (!scene.voiceover || scene.voiceover.trim().length === 0) {
-          console.log(`Skipping scene ${scene.id} - no voiceover text`);
+          // Skip scenes without voiceover text
           continue;
         }
 
-        console.log(`Generating voiceover for scene: ${scene.title}`);
+        // Generate voiceover for scene
 
         // Generate voiceover using OpenAI TTS
         const response = await openai.audio.speech.create({
@@ -84,13 +84,13 @@ export async function POST(request: NextRequest) {
           text: scene.voiceover,
         });
 
-        console.log(`Generated voiceover for scene ${scene.id}: ${adjustedDuration.toFixed(2)}s`);
+        // Voiceover generated successfully
 
         // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 50));
 
       } catch (error: any) {
-        console.error(`Error generating voiceover for scene ${scene.id}:`, error);
+        // Error generating voiceover - continue with next scene
         errors.push({
           sceneId: scene.id,
           error: error.message || 'Failed to generate voiceover',
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Voiceover sync error:', error);
+    // Voiceover sync error occurred
     
     if (error.status === 401) {
       return NextResponse.json(

@@ -10,12 +10,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
     }
 
-    // TODO: Supabase query
+    // TODO: Implement Supabase query for comments
     // const query = supabase.from('comments').select('*, author:user_profiles(*)').eq('project_id', projectId);
     // if (sceneId) query.eq('scene_id', sceneId);
     // const { data, error } = await query.order('created_at', { ascending: false });
+    // if (error) throw new Error(error.message);
 
-    return NextResponse.json({ comments: [] });
+    // Placeholder response - implement with database connection
+    return NextResponse.json({ 
+      comments: [],
+      error: 'Database integration pending - collaboration features not yet implemented'
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
