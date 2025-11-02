@@ -9,9 +9,24 @@ export async function POST(request: NextRequest) {
   try {
     const { text, voice, speed, language } = await request.json();
 
-    if (!text) {
+    // Enhanced input validation
+    if (!text || typeof text !== 'string') {
       return NextResponse.json(
-        { error: 'Text is required for voiceover generation' },
+        { error: 'Valid text is required for voiceover generation' },
+        { status: 400 }
+      );
+    }
+
+    if (!openai.apiKey) {
+      return NextResponse.json(
+        { error: 'OpenAI API key not configured' },
+        { status: 500 }
+      );
+    }
+
+    if (text.length > 4000) {
+      return NextResponse.json(
+        { error: 'Text too long. Maximum 4000 characters allowed.' },
         { status: 400 }
       );
     }
@@ -21,7 +36,7 @@ export async function POST(request: NextRequest) {
       model: 'tts-1',
       voice: voice || 'alloy',
       input: text,
-      speed: speed || 1.0,
+      speed: Math.min(Math.max(speed || 1.0, 0.25), 4.0), // Clamp speed between 0.25 and 4.0
     });
 
     // Convert response to buffer
@@ -43,9 +58,10 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Voiceover generation error:', error);
     
+    // Handle OpenAI API specific errors
     if (error.status === 401) {
       return NextResponse.json(
-        { error: 'Invalid OpenAI API key' },
+        { error: 'Invalid OpenAI API key. Please check your API key configuration.' },
         { status: 401 }
       );
     }
@@ -57,9 +73,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (error.status === 400) {
+      return NextResponse.json(
+        { error: 'Invalid request parameters. Please check your text and settings.' },
+        { status: 400 }
+      );
+    }
+
+    // Handle network and other errors
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      return NextResponse.json(
+        { error: 'Network error while connecting to OpenAI. Please check your internet connection.' },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
       {
         error: error.message || 'Failed to generate voiceover',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     );
