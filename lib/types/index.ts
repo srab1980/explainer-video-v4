@@ -1759,6 +1759,21 @@ export interface StoreState {
   socialPosts: SocialPost[];
   analyticsDashboard: AnalyticsDashboard | null;
   
+  // Export state
+  exportJobs: ExportJob[];
+  exportHistory: ExportHistoryEntry[];
+  currentExportJob: ExportJob | null;
+  isExporting: boolean;
+  exportProgress: number;
+  exportStatistics: ExportStatistics;
+  
+  // Project Management state
+  allProjects: ProjectListItem[];
+  projectTemplates: ProjectTemplate[];
+  projectVersions: Map<string, ProjectVersion[]>; // projectId -> versions
+  projectAnalytics: Map<string, ProjectAnalytics>; // projectId -> analytics
+  currentProjectMetadata: ProjectMetadata | null;
+  
   // Actions
   createProject: (name: string) => void;
   loadProject: (projectId: string) => void;
@@ -1879,6 +1894,198 @@ export interface StoreState {
   
   fetchAnalytics: () => Promise<void>;
   
+  // Export actions
+  startExport: (config: ExportConfig) => Promise<string>; // returns job ID
+  startBatchExport: (config: BatchExportConfig) => Promise<string[]>; // returns job IDs
+  checkExportStatus: (jobId: string) => Promise<ExportJob>;
+  cancelExport: (jobId: string) => Promise<void>;
+  downloadExport: (jobId: string) => Promise<void>;
+  deleteExportHistory: (entryId: string) => void;
+  clearExportHistory: () => void;
+  getExportStatistics: () => ExportStatistics;
+  
+  // Project Management actions
+  loadAllProjects: () => ProjectListItem[];
+  duplicateProject: (projectId: string) => string; // returns new project ID
+  deleteProject: (projectId: string) => void;
+  archiveProject: (projectId: string) => void;
+  updateProjectMetadata: (projectId: string, metadata: Partial<ProjectMetadata>) => void;
+  searchProjects: (query: string) => ProjectListItem[];
+  filterProjects: (filters: { category?: string; status?: string; tags?: string[] }) => ProjectListItem[];
+  createProjectVersion: (description?: string) => void;
+  restoreProjectVersion: (versionId: string) => void;
+  getProjectAnalytics: (projectId: string) => ProjectAnalytics | null;
+  incrementViewCount: (projectId: string) => void;
+  incrementExportCount: (projectId: string) => void;
+  trackTimeSpent: (projectId: string, seconds: number) => void;
+  loadTemplates: () => ProjectTemplate[];
+  createFromTemplate: (templateId: string, projectName: string) => void;
+  
   saveToLocalStorage: () => void;
   loadFromLocalStorage: () => void;
 }
+
+// ============================================================================
+// MULTI-FORMAT EXPORT SYSTEM
+// ============================================================================
+
+// Export format types
+export type ExportFormat = 'video' | 'pdf' | 'json';
+
+// PDF export configuration
+export interface PDFExportConfig {
+  format: 'presentation' | 'storyboard' | 'script';
+  pageSize: 'a4' | 'letter' | 'a3' | 'custom';
+  orientation: 'portrait' | 'landscape';
+  includeSceneThumbnails: boolean;
+  includeSceneDescriptions: boolean;
+  includeVoiceoverText: boolean;
+  includeTimestamps: boolean;
+  includePageNumbers: boolean;
+  includeBranding: boolean;
+  customHeader?: string;
+  customFooter?: string;
+  quality: 'high' | 'medium' | 'low';
+}
+
+// JSON export configuration
+export interface JSONExportConfig {
+  includeMetadata: boolean;
+  includeAssets: boolean; // Include base64 encoded images
+  pretty: boolean; // Pretty print JSON
+  version: string; // Export format version
+}
+
+// Unified export configuration
+export interface ExportConfig {
+  format: ExportFormat;
+  projectId: string;
+  projectName: string;
+  
+  // Format-specific configs
+  videoConfig?: VideoRenderConfig;
+  pdfConfig?: PDFExportConfig;
+  jsonConfig?: JSONExportConfig;
+  
+  // Common settings
+  includeWatermark: boolean;
+  watermarkText?: string;
+  createdBy?: string;
+}
+
+// Export job tracking
+export interface ExportJob {
+  id: string;
+  format: ExportFormat;
+  config: ExportConfig;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  progress: number; // 0-100
+  startedAt: Date;
+  completedAt?: Date;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number; // in bytes
+  error?: string;
+  exportDuration?: number; // in seconds
+}
+
+// Export history entry
+export interface ExportHistoryEntry {
+  id: string;
+  projectId: string;
+  projectName: string;
+  format: ExportFormat;
+  exportedAt: Date;
+  fileUrl: string;
+  fileName: string;
+  fileSize: number;
+  thumbnail?: string;
+  duration?: number; // for video exports
+  pageCount?: number; // for PDF exports
+}
+
+// Batch export configuration
+export interface BatchExportConfig {
+  formats: ExportFormat[];
+  configs: {
+    video?: VideoRenderConfig;
+    pdf?: PDFExportConfig;
+    json?: JSONExportConfig;
+  };
+  simultaneousExports: boolean;
+}
+
+// Export statistics
+export interface ExportStatistics {
+  totalExports: number;
+  exportsByFormat: Record<ExportFormat, number>;
+  lastExportDate?: Date;
+  totalExportedSize: number; // in bytes
+  averageExportTime: number; // in seconds
+}
+
+// ============================================================================
+// PROJECT MANAGEMENT
+// ============================================================================
+
+// Project metadata
+export interface ProjectMetadata {
+  tags: string[];
+  category: 'business' | 'education' | 'marketing' | 'entertainment' | 'other';
+  status: 'draft' | 'in-progress' | 'review' | 'completed' | 'archived';
+  thumbnail?: string;
+  lastModified: Date;
+  viewCount: number;
+  exportCount: number;
+  timeSpent: number; // in seconds
+}
+
+// Project list item (for dashboard)
+export interface ProjectListItem {
+  id: string;
+  name: string;
+  metadata: ProjectMetadata;
+  sceneCount: number;
+  duration: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Project template
+export interface ProjectTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: ProjectMetadata['category'];
+  thumbnail: string;
+  sceneCount: number;
+  estimatedDuration: number;
+  scenes: Omit<Scene, 'id' | 'order'>[];
+  tags: string[];
+}
+
+// Project analytics
+export interface ProjectAnalytics {
+  projectId: string;
+  views: number;
+  exports: number;
+  shares: number;
+  timeSpent: number;
+  lastAccessed: Date;
+  mostEditedScenes: string[];
+  popularFormats: Record<ExportFormat, number>;
+}
+
+// Project version for history
+export interface ProjectVersion {
+  id: string;
+  projectId: string;
+  versionNumber: number;
+  name: string;
+  description?: string;
+  createdAt: Date;
+  createdBy?: string;
+  snapshot: Project; // Full project state
+  changes: string[];
+}
+

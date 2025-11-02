@@ -34,6 +34,11 @@ import type {
   LandingPage,
   SocialPost,
   AnalyticsDashboard,
+  ExportJob,
+  ExportHistoryEntry,
+  ExportConfig,
+  BatchExportConfig,
+  ExportStatistics,
   IllustrationAnimation,
   TransparentBackgroundConfig,
 } from './types';
@@ -116,6 +121,20 @@ export const useStore = create<StoreState>((set, get) => ({
   landingPages: [],
   socialPosts: [],
   analyticsDashboard: null,
+  
+  // Export state
+  exportJobs: [],
+  exportHistory: [],
+  currentExportJob: null,
+  isExporting: false,
+  exportProgress: 0,
+  exportStatistics: {
+    totalExports: 0,
+    exportsByFormat: { video: 0, pdf: 0, json: 0 },
+    lastExportDate: undefined,
+    totalExportedSize: 0,
+    averageExportTime: 0,
+  },
 
   // Project actions
   createProject: (name: string) => {
@@ -1693,6 +1712,204 @@ export const useStore = create<StoreState>((set, get) => ({
     };
 
     set({ analyticsDashboard: analytics });
+  },
+
+  // Export actions
+  startExport: async (config) => {
+    const { currentProject } = get();
+    if (!currentProject) {
+      throw new Error('No project to export');
+    }
+
+    const jobId = uuidv4();
+    const job: ExportJob = {
+      id: jobId,
+      format: config.format,
+      config,
+      status: 'queued',
+      progress: 0,
+      startedAt: new Date(),
+    };
+
+    set((state) => ({
+      exportJobs: [...state.exportJobs, job],
+      currentExportJob: job,
+      isExporting: true,
+      exportProgress: 0,
+    }));
+
+    try {
+      // Call appropriate API based on format
+      let response;
+      set((state) => ({
+        currentExportJob: { ...job, status: 'processing' },
+      }));
+
+      if (config.format === 'video') {
+        response = await fetch('/api/render-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project: currentProject, config: config.videoConfig }),
+        });
+      } else if (config.format === 'pdf') {
+        response = await fetch('/api/export-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project: currentProject, config: config.pdfConfig }),
+        });
+      } else if (config.format === 'json') {
+        response = await fetch('/api/export-json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project: currentProject, config: config.jsonConfig }),
+        });
+      }
+
+      if (!response || !response.ok) {
+        throw new Error('Export failed');
+      }
+
+      const result = await response.json();
+
+      // Update job with completion
+      const completedJob: ExportJob = {
+        ...job,
+        status: 'completed',
+        progress: 100,
+        completedAt: new Date(),
+        fileUrl: result.fileUrl,
+        fileName: result.fileName,
+        fileSize: result.fileSize,
+        exportDuration: (new Date().getTime() - job.startedAt.getTime()) / 1000,
+      };
+
+      // Add to history
+      const historyEntry: ExportHistoryEntry = {
+        id: uuidv4(),
+        projectId: currentProject.id,
+        projectName: currentProject.name || 'Untitled Project',
+        format: config.format,
+        exportedAt: new Date(),
+        fileUrl: result.fileUrl,
+        fileName: result.fileName,
+        fileSize: result.fileSize,
+        thumbnail: result.thumbnail,
+        duration: result.duration,
+        pageCount: result.pageCount,
+      };
+
+      set((state) => {
+        const stats = state.exportStatistics;
+        return {
+          currentExportJob: completedJob,
+          isExporting: false,
+          exportProgress: 100,
+          exportHistory: [historyEntry, ...state.exportHistory],
+          exportStatistics: {
+            ...stats,
+            totalExports: stats.totalExports + 1,
+            exportsByFormat: {
+              ...stats.exportsByFormat,
+              [config.format]: stats.exportsByFormat[config.format] + 1,
+            },
+            lastExportDate: new Date(),
+            totalExportedSize: stats.totalExportedSize + result.fileSize,
+            averageExportTime:
+              (stats.averageExportTime * stats.totalExports + completedJob.exportDuration!) /
+              (stats.totalExports + 1),
+          },
+        };
+      });
+
+      return jobId;
+    } catch (error) {
+      const failedJob: ExportJob = {
+        ...job,
+        status: 'failed',
+        completedAt: new Date(),
+        error: error instanceof Error ? error.message : 'Export failed',
+      };
+
+      set({
+        currentExportJob: failedJob,
+        isExporting: false,
+      });
+
+      throw error;
+    }
+  },
+
+  startBatchExport: async (config) => {
+    const jobIds: string[] = [];
+    
+    for (const format of config.formats) {
+      const exportConfig: ExportConfig = {
+        format,
+        projectId: get().currentProject?.id || '',
+        projectName: get().currentProject?.name || '',
+        videoConfig: config.configs.video,
+        pdfConfig: config.configs.pdf,
+        jsonConfig: config.configs.json,
+        includeWatermark: false,
+      };
+
+      if (config.simultaneousExports) {
+        // Start all exports simultaneously
+        get().startExport(exportConfig).then((id) => jobIds.push(id)).catch(console.error);
+      } else {
+        // Start exports sequentially
+        const id = await get().startExport(exportConfig);
+        jobIds.push(id);
+      }
+    }
+
+    return jobIds;
+  },
+
+  checkExportStatus: async (jobId) => {
+    const job = get().exportJobs.find((j) => j.id === jobId);
+    if (!job) {
+      throw new Error('Export job not found');
+    }
+    return job;
+  },
+
+  cancelExport: async (jobId) => {
+    set((state) => ({
+      exportJobs: state.exportJobs.map((job) =>
+        job.id === jobId ? { ...job, status: 'failed' as const, error: 'Cancelled by user' } : job
+      ),
+      isExporting: false,
+    }));
+  },
+
+  downloadExport: async (jobId) => {
+    const job = get().exportJobs.find((j) => j.id === jobId);
+    if (!job || !job.fileUrl) {
+      throw new Error('Export file not available');
+    }
+
+    // Trigger download
+    const a = document.createElement('a');
+    a.href = job.fileUrl;
+    a.download = job.fileName || 'export';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  },
+
+  deleteExportHistory: (entryId) => {
+    set((state) => ({
+      exportHistory: state.exportHistory.filter((entry) => entry.id !== entryId),
+    }));
+  },
+
+  clearExportHistory: () => {
+    set({ exportHistory: [] });
+  },
+
+  getExportStatistics: () => {
+    return get().exportStatistics;
   },
 
   // Persistence
