@@ -1004,6 +1004,7 @@ export const useStore = create<StoreState>((set, get) => ({
           }
         } catch (error) {
           // Status poll error - continue polling
+        }
       }, 2000);
 
       return jobId;
